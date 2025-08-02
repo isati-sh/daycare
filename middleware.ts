@@ -47,12 +47,14 @@ export async function middleware(req: NextRequest) {
       const roleRoutes = {
         admin: ['/dashboard/admin'],
         teacher: ['/dashboard/teacher'],
-        parent: ['/dashboard/parent']
+        parent: ['/dashboard/parent'],
       };
 
       // Check if this is a role-specific route (including nested routes)
-      const isRoleSpecificRoute = Object.values(roleRoutes).some(routes => 
-        routes.some(route => pathname.startsWith(route + '/') || pathname === route)
+      const isRoleSpecificRoute = Object.values(roleRoutes).some((routes) =>
+        routes.some(
+          (route) => pathname.startsWith(route + '/') || pathname === route
+        )
       );
 
       if (isRoleSpecificRoute) {
@@ -73,10 +75,13 @@ export async function middleware(req: NextRequest) {
 
           const userRole = profile?.site_role || 'parent';
           console.log('User role from profile:', userRole);
-          const allowedRoutes = roleRoutes[userRole as keyof typeof roleRoutes] || [];
+          const allowedRoutes =
+            roleRoutes[userRole as keyof typeof roleRoutes] || [];
 
           // Check if user has access to this route
-          const hasAccess = allowedRoutes.some(route => pathname.startsWith(route + '/') || pathname === route);
+          const hasAccess = allowedRoutes.some(
+            (route) => pathname.startsWith(route + '/') || pathname === route
+          );
 
           if (!hasAccess) {
             // Prevent redirect loops - don't redirect if already going to dashboard
@@ -84,7 +89,7 @@ export async function middleware(req: NextRequest) {
             if (pathname === '/dashboard') {
               return res;
             }
-            
+
             // Redirect to their appropriate dashboard section with error message
             const redirect = new URL('/dashboard', req.url);
             redirect.searchParams.set('error', 'unauthorized');
