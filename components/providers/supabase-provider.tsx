@@ -36,55 +36,86 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getSessionAndRole = async () => {
-      const {
-        data: { session },
-      } = await client.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
+    // Initialize auth state
+    const initializeAuth = async () => {
+      try {
+        setLoading(true);
+        
+        // Get the current session
+        const { data: { session }, error: sessionError } = await client.auth.getSession();
+        
+        if (sessionError) throw sessionError;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        const { data: profile } = await client
-          .from('profiles')
-          .select('site_role')
-          .eq('id', session.user.id)
-          .single();
+        if (session?.user) {
+          // Get user profile with role
+          const { data: profile, error: profileError } = await client
+            .from('profiles')
+            .select('site_role')
+            .eq('id', session.user.id)
+            .single();
 
-        const userRole = (profile?.site_role as Role) ?? 'parent';
-        setRole(userRole);
-        setIsAdmin(userRole === 'admin');
-      }
+          if (profileError) throw profileError;
 
-      setLoading(false);
-    };
-
-    getSessionAndRole();
-
-    const {
-      data: { subscription },
-    } = client.auth.onAuthStateChange(async (_, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        const { data: profile } = await client
-          .from('profiles')
-          .select('site_role')
-          .eq('id', session.user.id)
-          .single();
-
-        const userRole = (profile?.site_role as Role) ?? 'parent';
-        setRole(userRole);
-        setIsAdmin(userRole === 'admin');
-      } else {
+          const userRole = (profile?.site_role as Role) ?? 'parent';
+          setRole(userRole);
+          setIsAdmin(userRole === 'admin');
+        } else {
+          setRole(null);
+          setIsAdmin(false);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        // Reset to default state on error
+        setSession(null);
+        setUser(null);
         setRole(null);
         setIsAdmin(false);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setLoading(false);
-    });
+    // Set up auth state change listener
+    const { data: { subscription } } = client.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
 
-    return () => subscription.unsubscribe();
+        if (session?.user) {
+          try {
+            const { data: profile, error } = await client
+              .from('profiles')
+              .select('site_role')
+              .eq('id', session.user.id)
+              .single();
+
+            if (error) throw error;
+
+            const userRole = (profile?.site_role as Role) ?? 'parent';
+            setRole(userRole);
+            setIsAdmin(userRole === 'admin');
+          } catch (error) {
+            console.error('Error updating user role:', error);
+            setRole('parent');
+            setIsAdmin(false);
+          }
+        } else {
+          setRole(null);
+          setIsAdmin(false);
+        }
+      }
+    );
+
+    // Initialize auth state
+    initializeAuth();
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [client]);
 
   if (loading) return null;

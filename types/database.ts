@@ -6,7 +6,7 @@ export interface Database {
           id: string
           email: string
           full_name: string | null
-          role: 'parent' | 'teacher' | 'admin'
+          site_role: 'parent' | 'teacher' | 'admin'
           phone: string | null
           address: string | null
           emergency_contact: string | null
