@@ -5,6 +5,9 @@ import { Toaster } from 'react-hot-toast'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { SupabaseProvider } from '@/components/providers/supabase-provider'
 import Navigation from '@/components/layout/navigation'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { Database } from '@/types/database';
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -59,11 +62,15 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
+  const supabase = createServerComponentClient<Database>({ cookies });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
@@ -73,10 +80,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-        <SupabaseProvider>
-          <Navigation />
-          {children}
-          <Toaster
+          <SupabaseProvider serverSession={session}>
+            <Navigation />
+            {children}
+            <Toaster
               position="top-right"
               toastOptions={{
                 duration: 4000,
@@ -104,5 +111,5 @@ export default function RootLayout({
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 } 

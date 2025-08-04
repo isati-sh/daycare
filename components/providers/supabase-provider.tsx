@@ -1,14 +1,8 @@
 'use client';
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
-import { type SupabaseClient, Session, User } from '@supabase/supabase-js';
+import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 
 type Role = 'admin' | 'teacher' | 'parent' | null;
@@ -20,7 +14,6 @@ type SupabaseContextType = {
   role: Role;
   isAdmin: boolean;
   loading: boolean;
-  initialized: boolean;
 };
 
 const SupabaseContext = createContext<SupabaseContextType | undefined>(
@@ -34,88 +27,64 @@ export const useSupabase = () => {
   return context;
 };
 
-export function SupabaseProvider({ children }: { children: ReactNode }) {
+export function SupabaseProvider({
+  serverSession,
+  children,
+}: {
+  serverSession: Session | null;
+  children: React.ReactNode;
+}) {
   const [client] = useState(() => createPagesBrowserClient<Database>());
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(serverSession);
+  const [user, setUser] = useState<User | null>(serverSession?.user ?? null);
   const [role, setRole] = useState<Role>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
 
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await client
-        .from('profiles')
-        .select('site_role')
-        .eq('id', userId)
-        .single();
+  const fetchUserRole = async (userId: string): Promise<Role> => {
+    const { data, error } = await client
+      .from('profiles')
+      .select('site_role')
+      .eq('id', userId)
+      .single();
 
-      if (error) {
-        console.warn('Failed to fetch role:', error.message);
-        return null;
-      }
-
-      return data?.site_role ?? null;
-    } catch (err) {
-      console.error('Error fetching user role:', err);
+    if (error) {
+      console.error('Role fetch error:', error);
       return null;
     }
+
+    return data?.site_role ?? null;
   };
 
   useEffect(() => {
-    let isMounted = true;
-
-    const init = async () => {
-      setLoading(true);
-
+    const getSession = async () => {
       const {
         data: { session },
-        error: sessionError,
       } = await client.auth.getSession();
-
-      if (sessionError) {
-        console.warn('Error getting session:', sessionError.message);
-      }
-
-      if (!isMounted) return;
-
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
-      setInitialized(true);
 
       if (session?.user) {
-        const role = await fetchUserRole(session.user.id);
-        if (!isMounted) return;
-        setRole(role);
-        setIsAdmin(role === 'admin');
-      } else {
-        setRole(null);
-        setIsAdmin(false);
+        const userRole = await fetchUserRole(session.user.id);
+        setRole(userRole);
       }
+
+      setLoading(false);
     };
 
-    const { data: listener } = client.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    getSession();
 
-        if (session?.user) {
-          const role = await fetchUserRole(session.user.id);
-          setRole(role);
-          setIsAdmin(role === 'admin');
-        } else {
-          setRole(null);
-          setIsAdmin(false);
-        }
+    const { data: listener } = client.auth.onAuthStateChange((_, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        fetchUserRole(session.user.id).then(setRole);
+      } else {
+        setRole(null);
       }
-    );
-
-    init();
+    });
 
     return () => {
-      isMounted = false;
       listener.subscription.unsubscribe();
     };
   }, [client]);
@@ -127,9 +96,8 @@ export function SupabaseProvider({ children }: { children: ReactNode }) {
         session,
         user,
         role,
-        isAdmin,
+        isAdmin: role === 'admin',
         loading,
-        initialized,
       }}
     >
       {children}
