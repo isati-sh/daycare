@@ -19,6 +19,7 @@ import {
   UserCheck
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import RoleGuard from '@/components/guards/roleGuard'
 
 interface Teacher {
   id: string
@@ -150,6 +151,7 @@ export default function AdminTeachersPage() {
   }
 
   return (
+    <RoleGuard path="/dashboard/admin/teachers">
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
@@ -321,6 +323,7 @@ export default function AdminTeachersPage() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </RoleGuard>
   )
 } 

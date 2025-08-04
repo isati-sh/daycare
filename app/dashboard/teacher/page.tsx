@@ -29,6 +29,8 @@ import {
 } from 'lucide-react'
 import { formatDate, formatTime, getAge } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
+import RoleGuard from '@/components/guards/roleGuard'
 
 // --- TimePicker component ---
 function TimePicker({
@@ -233,20 +235,19 @@ const dummyDailyLogs: DailyLog[] = [
 ];
 
 export default function TeacherDashboard() {
-  const { user, client: supabase } = useSupabase();
+  const { user, client: supabase, role, loading, initialized } = useSupabase();
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showLogForm, setShowLogForm] = useState(false);
   const [editLog, setEditLog] = useState<DailyLog | null>(null);
   // const [viewMode, setViewMode] = useState<'overview' | 'detailed'>('overview'); // Not used
+   const router = useRouter();
 
   useEffect(() => {
     setChildren(dummyChildren);
     setDailyLogs(dummyDailyLogs);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -267,8 +268,6 @@ export default function TeacherDashboard() {
     } catch (error: any) {
       console.error('Error fetching children:', error);
       toast.error('Failed to load children');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -352,15 +351,26 @@ export default function TeacherDashboard() {
     return childLog;
   }).length;
 
-  if (loading) {
+  if (!initialized || loading) {
     return (
+      <RoleGuard path="/dashboard/teacher">
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your classroom...</p>
         </div>
-      </div>
+        </div>
+        </RoleGuard>  
     );
+  }
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
+
+  if (!['admin', 'teacher'].includes(role || '')) {
+    router.push('/access-denied');
+    return null;
   }
 
   return (

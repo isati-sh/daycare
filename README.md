@@ -10,30 +10,36 @@ A comprehensive, production-ready full-stack web application for Little Learners
 - **Programs**: Detailed age groups (Infant, Toddler, Preschool) with curriculum information
 - **Gallery**: Interactive image carousel with categories and slideshow functionality
 - **Contact**: Working contact form with Supabase integration
+- **Authentication**: Secure login and registration system
 
-### 🔐 Parent Portal (Authentication Required)
-- **Authentication**: Email/password login and registration with Supabase Auth
-- **Dashboard**: Child information, daily logs, and quick actions
-- **Child Portfolio**: Track development milestones, activities, and progress
-- **Daily Activities**: View planned activities before drop-off
-- **Daily Reports**: Detailed reports with analytics and downloadable PDFs
-- **Profile Management**: View and update parent information
-- **Message System**: Communication with staff
-- **Reports**: Downloadable attendance and progress reports
+### 🔐 Role-Based Access Control
+- **Authentication System**: Email/password login with Supabase Auth
+- **Role Management**: Support for Admin, Teacher, and Parent roles
+- **Route Protection**: Middleware-based access control
+- **Session Persistence**: Reliable session management across page reloads
+
+### 👨‍👩‍👧‍👦 Parent Portal
+- **Dashboard**: Overview of child information and recent activities
+- **Child Portfolio**: Track development milestones and progress
+- **Activities**: View daily activities and planned schedules
+- **Reports**: Access detailed reports and analytics
+- **Children Management**: View and manage enrolled children
+- **Profile Management**: Update personal information and settings
 
 ### 👨‍🏫 Teacher Dashboard
-- **Child Management**: View and manage assigned children
-- **Daily Log Creation**: Create detailed daily reports for each child
+- **Child Management**: Comprehensive view of assigned children
+- **Daily Log Creation**: Create detailed daily reports with activities, meals, naps
 - **Activity Planning**: Plan and schedule activities for different age groups
-- **Progress Tracking**: Monitor child development and milestones
-- **Portfolio Management**: Add observations, photos, and milestones
-- **Attendance Tracking**: Record check-ins and check-outs
+- **Portfolio Management**: Add observations, photos, and developmental milestones
+- **Reports**: Generate and view teacher-specific reports
+- **Real-time Updates**: Live activity tracking and logging
 
-### ⚙️ Admin Features (Optional)
-- Admin dashboard for staff management
-- Upload logs, photos, and announcements
-- Manage parent accounts and children
-- Generate comprehensive reports
+### ⚙️ Admin Features
+- **User Management**: Add and manage teachers, parents, and children
+- **Role Assignment**: Assign and modify user roles
+- **System Overview**: Comprehensive dashboard with system statistics
+- **Data Management**: Access to all system data and reports
+- **Settings**: Configure system-wide settings and preferences
 
 ## 🛠️ Technology Stack
 
@@ -62,42 +68,112 @@ A comprehensive, production-ready full-stack web application for Little Learners
 - **Zod**: Schema validation
 - **React Hot Toast**: User notifications
 
+### Authentication & Security
+- **Role-Based Access Control**: Admin, Teacher, and Parent roles
+- **Route Protection**: Middleware-based authentication
+- **Session Management**: Persistent sessions with localStorage caching
+- **Protected Routes**: AuthGuard components for role-specific access
+- **Secure Sign-out**: Complete session cleanup and redirection
+
 ## 📁 Project Structure
 
 ```
-daycare-center/
-├── app/                    # Next.js App Router pages
-│   ├── (auth)/            # Authentication pages
-│   │   ├── login/
-│   │   └── register/
-│   ├── dashboard/         # Parent portal pages
-│   │   ├── portfolio/     # Child portfolio
-│   │   ├── activities/    # Daily activities
-│   │   └── reports/       # Analytics & reports
-│   ├── teacher/           # Teacher dashboard
-│   ├── globals.css        # Global styles
-│   ├── layout.tsx         # Root layout
-│   └── page.tsx           # Home page
-├── components/            # Reusable components
-│   ├── ui/               # Base UI components
-│   │   ├── button.tsx
-│   │   ├── card.tsx
-│   │   ├── input.tsx
-│   │   └── ...
-│   ├── layout/           # Layout components
-│   │   └── navigation.tsx
-│   └── providers/        # Context providers
-│       ├── supabase-provider.tsx
-│       └── theme-provider.tsx
-├── lib/                  # Utility functions
-│   ├── supabase.ts       # Supabase client
-│   └── utils.ts          # Helper functions
-├── types/                # TypeScript definitions
-│   └── database.ts       # Database schema types
-├── public/              # Static assets
+dayCare/
+├── app/                          # Next.js App Router pages
+│   ├── about/                   # About us page
+│   │   └── page.tsx
+│   ├── access-denied/           # Access denied page
+│   │   └── page.tsx
+│   ├── contact/                 # Contact page
+│   │   └── page.tsx
+│   ├── dashboard/               # Protected dashboard area
+│   │   ├── activities/          # Activities management
+│   │   │   └── page.tsx
+│   │   ├── admin/               # Admin dashboard
+│   │   │   ├── add-member/      # Add new members
+│   │   │   │   └── page.tsx
+│   │   │   ├── children/        # Manage children
+│   │   │   │   └── page.tsx
+│   │   │   ├── parents/         # Manage parents
+│   │   │   │   └── page.tsx
+│   │   │   ├── teachers/        # Manage teachers
+│   │   │   │   └── page.tsx
+│   │   │   └── page.tsx         # Admin main dashboard
+│   │   ├── enroll/              # Child enrollment
+│   │   │   └── page.tsx
+│   │   ├── messages/            # Messaging system
+│   │   │   └── page.tsx
+│   │   ├── parent/              # Parent dashboard
+│   │   │   ├── activities/      # View child activities
+│   │   │   │   └── page.tsx
+│   │   │   ├── children/        # View children info
+│   │   │   │   └── page.tsx
+│   │   │   ├── reports/         # View reports
+│   │   │   │   └── page.tsx
+│   │   │   └── page.tsx         # Parent main dashboard
+│   │   ├── portfolio/           # Child portfolio
+│   │   │   └── page.tsx
+│   │   ├── profile/             # User profile
+│   │   │   └── page.tsx
+│   │   ├── reports/             # Reports system
+│   │   │   └── page.tsx
+│   │   ├── schedule/            # Scheduling
+│   │   │   └── page.tsx
+│   │   ├── teacher/             # Teacher dashboard
+│   │   │   ├── activities/      # Manage activities
+│   │   │   │   └── page.tsx
+│   │   │   ├── children/        # Manage assigned children
+│   │   │   │   └── page.tsx
+│   │   │   ├── reports/         # Teacher reports
+│   │   │   │   └── page.tsx
+│   │   │   └── page.tsx         # Teacher main dashboard
+│   │   └── page.tsx             # Main dashboard
+│   ├── gallery/                 # Photo gallery
+│   │   └── page.tsx
+│   ├── login/                   # Authentication pages
+│   │   └── page.tsx
+│   ├── programs/                # Programs information
+│   │   └── page.tsx
+│   ├── register/                # User registration
+│   │   └── page.tsx
+│   ├── globals.css              # Global styles
+│   ├── layout.tsx               # Root layout
+│   ├── not-found.tsx            # 404 page
+│   └── page.tsx                 # Home page
+├── components/                   # Reusable components
+│   ├── guards/                  # Route protection components
+│   │   └── roleGuard.tsx        # Role-based access control
+│   ├── layout/                  # Layout components
+│   │   └── navigation.tsx       # Main navigation
+│   ├── providers/               # Context providers
+│   │   ├── supabase-provider.tsx # Supabase context
+│   │   └── theme-provider.tsx   # Theme context
+│   └── ui/                      # Base UI components
+│       ├── badge.tsx
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── input.tsx
+│       ├── label.tsx
+│       └── textarea.tsx
+├── lib/                         # Utility functions
+│   ├── auth/                    # Authentication utilities
+│   │   └── sign-out.ts          # Sign out logic
+│   ├── supabase.ts              # Supabase client configuration
+│   └── utils.ts                 # Helper functions
+├── types/                       # TypeScript definitions
+│   └── database.ts              # Database schema types
+├── public/                      # Static assets
 │   ├── robots.txt
 │   └── sitemap.xml
-└── middleware.ts         # Route protection
+├── middleware.ts                # Route protection middleware
+├── next.config.js               # Next.js configuration
+├── package.json                 # Dependencies and scripts
+├── tailwind.config.js           # Tailwind CSS configuration
+├── tsconfig.json                # TypeScript configuration
+├── .env.local                   # Environment variables (local)
+├── .eslintrc.json               # ESLint configuration
+├── .gitignore                   # Git ignore rules
+└── README.md                    # Project documentation
 ```
 
 ## 🚀 Quick Start

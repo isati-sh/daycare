@@ -1,19 +1,26 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from 'react';
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
-import type { SupabaseClient, Session, User } from '@supabase/supabase-js';
+import { type SupabaseClient, Session, User } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 
-type Role = 'admin' | 'teacher' | 'parent';
+type Role = 'admin' | 'teacher' | 'parent' | null;
 
 type SupabaseContextType = {
   user: User | null;
   session: Session | null;
   client: SupabaseClient<Database>;
-  role: Role | null;
+  role: Role;
   isAdmin: boolean;
   loading: boolean;
+  initialized: boolean;
 };
 
 const SupabaseContext = createContext<SupabaseContextType | undefined>(
@@ -27,81 +34,77 @@ export const useSupabase = () => {
   return context;
 };
 
-export function SupabaseProvider({ children }: { children: React.ReactNode }) {
+export function SupabaseProvider({ children }: { children: ReactNode }) {
   const [client] = useState(() => createPagesBrowserClient<Database>());
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<Role | null>(null);
+  const [role, setRole] = useState<Role>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
+
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await client
+        .from('profiles')
+        .select('site_role')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.warn('Failed to fetch role:', error.message);
+        return null;
+      }
+
+      return data?.site_role ?? null;
+    } catch (err) {
+      console.error('Error fetching user role:', err);
+      return null;
+    }
+  };
 
   useEffect(() => {
-    // Initialize auth state
-    const initializeAuth = async () => {
-      try {
-        setLoading(true);
-        
-        // Get the current session
-        const { data: { session }, error: sessionError } = await client.auth.getSession();
-        
-        if (sessionError) throw sessionError;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
+    let isMounted = true;
 
-        if (session?.user) {
-          // Get user profile with role
-          const { data: profile, error: profileError } = await client
-            .from('profiles')
-            .select('site_role')
-            .eq('id', session.user.id)
-            .single();
+    const init = async () => {
+      setLoading(true);
 
-          if (profileError) throw profileError;
+      const {
+        data: { session },
+        error: sessionError,
+      } = await client.auth.getSession();
 
-          const userRole = (profile?.site_role as Role) ?? 'parent';
-          setRole(userRole);
-          setIsAdmin(userRole === 'admin');
-        } else {
-          setRole(null);
-          setIsAdmin(false);
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-        // Reset to default state on error
-        setSession(null);
-        setUser(null);
+      if (sessionError) {
+        console.warn('Error getting session:', sessionError.message);
+      }
+
+      if (!isMounted) return;
+
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+      setInitialized(true);
+
+      if (session?.user) {
+        const role = await fetchUserRole(session.user.id);
+        if (!isMounted) return;
+        setRole(role);
+        setIsAdmin(role === 'admin');
+      } else {
         setRole(null);
         setIsAdmin(false);
-      } finally {
-        setLoading(false);
       }
     };
 
-    // Set up auth state change listener
-    const { data: { subscription } } = client.auth.onAuthStateChange(
-      async (event, session) => {
+    const { data: listener } = client.auth.onAuthStateChange(
+      async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          try {
-            const { data: profile, error } = await client
-              .from('profiles')
-              .select('site_role')
-              .eq('id', session.user.id)
-              .single();
-
-            if (error) throw error;
-
-            const userRole = (profile?.site_role as Role) ?? 'parent';
-            setRole(userRole);
-            setIsAdmin(userRole === 'admin');
-          } catch (error) {
-            console.error('Error updating user role:', error);
-            setRole('parent');
-            setIsAdmin(false);
-          }
+          const role = await fetchUserRole(session.user.id);
+          setRole(role);
+          setIsAdmin(role === 'admin');
         } else {
           setRole(null);
           setIsAdmin(false);
@@ -109,19 +112,26 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Initialize auth state
-    initializeAuth();
+    init();
 
-    // Cleanup subscription on unmount
     return () => {
-      subscription.unsubscribe();
+      isMounted = false;
+      listener.subscription.unsubscribe();
     };
   }, [client]);
 
-  if (loading) return null;
-
   return (
-    <SupabaseContext.Provider value={{ user, session, client, role, isAdmin, loading }}>
+    <SupabaseContext.Provider
+      value={{
+        client,
+        session,
+        user,
+        role,
+        isAdmin,
+        loading,
+        initialized,
+      }}
+    >
       {children}
     </SupabaseContext.Provider>
   );
