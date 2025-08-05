@@ -1,40 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSupabase } from '@/components/providers/supabase-provider'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { 
-  Activity, 
-  Plus, 
-  Calendar, 
-  Clock, 
-  Users, 
-  Shield,
-  Edit,
-  Trash2,
-  BookOpen,
-  Music,
-  Palette,
-  Gamepad2
-} from 'lucide-react'
-import toast from 'react-hot-toast'
+import { Database } from '@/types/database'
 
-interface PlannedActivity {
-  id: string
-  title: string
-  description: string
-  category: 'art' | 'music' | 'reading' | 'games' | 'outdoor' | 'science'
-  age_group: 'infant' | 'toddler' | 'preschool' | 'all'
-  duration: number // in minutes
-  materials: string[]
-  learning_objectives: string[]
-  date: string
-  time: string
-  status: 'planned' | 'in_progress' | 'completed'
+type PlannedActivity = Database['public']['Tables']['planned_activities']['Row'] & {
   children_participating: number
 }
 
@@ -44,353 +20,457 @@ export default function TeacherActivitiesPage() {
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-
-  // Dummy data for testing
-  const dummyActivities: PlannedActivity[] = [
-    {
-      id: '1',
-      title: 'Finger Painting Fun',
-      description: 'Creative art activity using safe, washable finger paints',
-      category: 'art',
-      age_group: 'toddler',
-      duration: 30,
-      materials: ['Washable finger paints', 'Large paper sheets', 'Aprons', 'Wet wipes'],
-      learning_objectives: ['Color recognition', 'Fine motor skills', 'Creative expression'],
-      date: '2024-03-15',
-      time: '09:00',
-      status: 'completed',
-      children_participating: 8
-    },
-    {
-      id: '2',
-      title: 'Story Time with Puppets',
-      description: 'Interactive reading session with hand puppets',
-      category: 'reading',
-      age_group: 'preschool',
-      duration: 20,
-      materials: ['Story books', 'Hand puppets', 'Comfortable seating'],
-      learning_objectives: ['Language development', 'Listening skills', 'Imagination'],
-      date: '2024-03-15',
-      time: '10:30',
-      status: 'in_progress',
-      children_participating: 6
-    },
-    {
-      id: '3',
-      title: 'Outdoor Nature Walk',
-      description: 'Exploration of the playground and garden area',
-      category: 'outdoor',
-      age_group: 'all',
-      duration: 45,
-      materials: ['Magnifying glasses', 'Collection bags', 'Nature guide'],
-      learning_objectives: ['Observation skills', 'Nature appreciation', 'Physical activity'],
-      date: '2024-03-16',
-      time: '14:00',
-      status: 'planned',
-      children_participating: 10
-    }
-  ]
+  const [activityForm, setActivityForm] = useState({
+    name: '',
+    description: '',
+    category: 'learning' as 'art' | 'music' | 'outdoor' | 'learning' | 'sensory' | 'physical' | 'dramatic_play' | 'science',
+    start_time: '',
+    end_time: '',
+    age_groups: [] as string[],
+    max_participants: '',
+    materials_needed: '',
+    learning_objectives: '',
+    teacher_notes: '',
+    weather_dependent: false
+  })
 
   useEffect(() => {
-    // Use dummy data for testing
-    setActivities(dummyActivities)
-    setLoading(false)
-  }, [])
+    if (user && client) {
+      fetchActivities()
+    }
+  }, [user, client, selectedDate])
 
-  const filteredActivities = activities.filter(activity => 
-    activity.date === selectedDate
-  )
+  const fetchActivities = async () => {
+    if (!user || !client) return
 
-  const getCategoryIcon = (category: string) => {
+    try {
+      setLoading(true)
+      
+      // Fetch planned activities for the selected date
+      const { data: activitiesData, error } = await client
+        .from('planned_activities')
+        .select('*')
+        .eq('date', selectedDate)
+        .order('start_time')
+
+      if (error) {
+        console.error('Error fetching activities:', error)
+        return
+      }
+
+      // Fetch children assigned to this teacher to get participation info
+      const { data: childrenData, error: childrenError } = await client
+        .from('children')
+        .select('id, age_group')
+        .eq('teacher_id', user.id)
+        .eq('status', 'active')
+
+      if (childrenError) {
+        console.error('Error fetching children:', childrenError)
+      }
+
+      // Transform activities to include child participation info
+      const activitiesWithParticipation = activitiesData?.map(activity => {
+        // Count how many of the teacher's children can participate in this activity
+        const eligibleChildren = childrenData?.filter(child => 
+          activity.age_groups.includes(child.age_group)
+        ) || []
+
+        return {
+          ...activity,
+          children_participating: eligibleChildren.length
+        }
+      }) || []
+
+      setActivities(activitiesWithParticipation)
+    } catch (error) {
+      console.error('Error fetching activities:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddActivity = async () => {
+    if (!user || !client) return
+
+    try {
+      const { error } = await client
+        .from('planned_activities')
+        .insert({
+          name: activityForm.name,
+          description: activityForm.description,
+          category: activityForm.category,
+          start_time: activityForm.start_time,
+          end_time: activityForm.end_time,
+          age_groups: activityForm.age_groups,
+          max_participants: activityForm.max_participants ? parseInt(activityForm.max_participants) : null,
+          materials_needed: activityForm.materials_needed ? activityForm.materials_needed.split(',').map(m => m.trim()) : [],
+          learning_objectives: activityForm.learning_objectives ? activityForm.learning_objectives.split(',').map(o => o.trim()) : [],
+          teacher_notes: activityForm.teacher_notes || null,
+          date: selectedDate,
+          weather_dependent: activityForm.weather_dependent,
+          created_by: user.id,
+          status: 'planned'
+        })
+
+      if (error) {
+        console.error('Error adding activity:', error)
+        return
+      }
+
+      setShowAddForm(false)
+      setActivityForm({
+        name: '',
+        description: '',
+        category: 'learning',
+        start_time: '',
+        end_time: '',
+        age_groups: [],
+        max_participants: '',
+        materials_needed: '',
+        learning_objectives: '',
+        teacher_notes: '',
+        weather_dependent: false
+      })
+      fetchActivities()
+    } catch (error) {
+      console.error('Error adding activity:', error)
+    }
+  }
+
+  const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'art': return <Palette className="h-4 w-4" />
-      case 'music': return <Music className="h-4 w-4" />
-      case 'reading': return <BookOpen className="h-4 w-4" />
-      case 'games': return <Gamepad2 className="h-4 w-4" />
-      case 'outdoor': return <Activity className="h-4 w-4" />
-      case 'science': return <Activity className="h-4 w-4" />
-      default: return <Activity className="h-4 w-4" />
+      case 'art': return 'bg-pink-100 text-pink-800'
+      case 'music': return 'bg-purple-100 text-purple-800'
+      case 'outdoor': return 'bg-green-100 text-green-800'
+      case 'learning': return 'bg-blue-100 text-blue-800'
+      case 'sensory': return 'bg-yellow-100 text-yellow-800'
+      case 'physical': return 'bg-orange-100 text-orange-800'
+      case 'dramatic_play': return 'bg-indigo-100 text-indigo-800'
+      case 'science': return 'bg-teal-100 text-teal-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'planned': return 'secondary'
-      case 'in_progress': return 'default'
-      case 'completed': return 'outline'
-      default: return 'secondary'
+      case 'completed': return 'bg-green-100 text-green-800'
+      case 'in_progress': return 'bg-blue-100 text-blue-800'
+      case 'planned': return 'bg-yellow-100 text-yellow-800'
+      case 'cancelled': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const handleStatusChange = async (activityId: string, newStatus: string) => {
-    try {
-      // Update activity status in database
-      setActivities(prev => prev.map(activity => 
-        activity.id === activityId 
-          ? { ...activity, status: newStatus as any }
-          : activity
-      ))
-
-      toast.success('Activity status updated')
-    } catch (error) {
-      toast.error('Failed to update activity status')
-    }
+  const formatTime = (time: string) => {
+    return new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })
   }
 
-  const handleDeleteActivity = async (activityId: string, activityTitle: string) => {
-    if (!confirm(`Are you sure you want to delete "${activityTitle}"?`)) {
-      return
-    }
-
-    try {
-      // Delete activity from database
-      setActivities(prev => prev.filter(activity => activity.id !== activityId))
-      toast.success('Activity deleted successfully')
-    } catch (error) {
-      toast.error('Failed to delete activity')
-    }
-  }
-
-  if (role !== 'teacher') {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">Teacher privileges required.</p>
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading activities...</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <Activity className="h-8 w-8 mr-3" />
-            Plan Activities
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Plan and manage educational activities for your students
-          </p>
-        </div>
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Daily Activities</h1>
+        <Button onClick={() => setShowAddForm(true)}>Add Activity</Button>
+      </div>
 
-        {/* Date Selector and Add Button */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Date
-            </label>
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="max-w-xs"
-            />
-          </div>
-          <div className="flex items-end">
-            <Button onClick={() => setShowAddForm(!showAddForm)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Activity
-            </Button>
-          </div>
-        </div>
+      {/* Date Selector */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Select Date
+        </label>
+        <Input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="w-48"
+        />
+      </div>
 
-        {/* Add Activity Form */}
-        {showAddForm && (
-          <Card className="mb-6">
+      {/* Activities Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {activities.map((activity) => (
+          <Card key={activity.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
-              <CardTitle>Add New Activity</CardTitle>
-              <CardDescription>
-                Plan a new educational activity for your students
-              </CardDescription>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-xl">
+                    {activity.name}
+                  </CardTitle>
+                  <p className="text-gray-600 text-sm mt-1">
+                    {formatTime(activity.start_time)} - {formatTime(activity.end_time)}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Badge className={getCategoryColor(activity.category)}>
+                    {activity.category.replace('_', ' ')}
+                  </Badge>
+                  <Badge className={getStatusColor(activity.status)}>
+                    {activity.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent>
+              <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Activity Title
-                  </label>
-                  <Input placeholder="Enter activity title" />
+                  <p className="text-gray-700">{activity.description}</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
-                  <select className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                    <option value="art">Art & Crafts</option>
-                    <option value="music">Music & Movement</option>
-                    <option value="reading">Reading & Language</option>
-                    <option value="games">Games & Play</option>
-                    <option value="outdoor">Outdoor Activities</option>
-                    <option value="science">Science & Discovery</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <Textarea placeholder="Describe the activity..." rows={3} />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Age Group
-                  </label>
-                  <select className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                    <option value="all">All Ages</option>
-                    <option value="infant">Infants</option>
-                    <option value="toddler">Toddlers</option>
-                    <option value="preschool">Preschool</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Duration (minutes)
-                  </label>
-                  <Input type="number" placeholder="30" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Time
-                  </label>
-                  <Input type="time" />
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button>Save Activity</Button>
-                <Button variant="outline" onClick={() => setShowAddForm(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Activities List */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading activities...</p>
-            </div>
-          ) : filteredActivities.length === 0 ? (
-            <div className="text-center py-8">
-              <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No activities planned for this date</p>
-              <Button className="mt-4" onClick={() => setShowAddForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add First Activity
-              </Button>
-            </div>
-          ) : (
-            filteredActivities.map((activity) => (
-              <Card key={activity.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {getCategoryIcon(activity.category)}
-                      <div>
-                        <CardTitle className="text-lg">{activity.title}</CardTitle>
-                        <CardDescription className="mt-1">
-                          {activity.description}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={getStatusColor(activity.status) as any}>
-                        {activity.status.replace('_', ' ')}
+                <div>
+                  <span className="font-semibold text-sm">Age Groups:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {activity.age_groups.map((ageGroup, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {ageGroup}
                       </Badge>
-                      <Badge variant="outline">
-                        {activity.age_group}
-                      </Badge>
-                    </div>
+                    ))}
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-gray-500" />
-                      <span>{activity.time} ({activity.duration} min)</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 mr-2 text-gray-500" />
-                      <span>{activity.children_participating} children</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                      <span>{new Date(activity.date).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  
+                </div>
+
+                {activity.materials_needed && activity.materials_needed.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Materials Needed:</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {activity.materials.map((material, index) => (
+                    <span className="font-semibold text-sm">Materials:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {activity.materials_needed.map((material, index) => (
                         <Badge key={index} variant="outline" className="text-xs">
                           {material}
                         </Badge>
                       ))}
                     </div>
                   </div>
-                  
+                )}
+
+                {activity.learning_objectives && activity.learning_objectives.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Learning Objectives:</h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
+                    <span className="font-semibold text-sm">Learning Objectives:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
                       {activity.learning_objectives.map((objective, index) => (
-                        <li key={index} className="flex items-start">
-                          <span className="text-primary-500 mr-2">•</span>
+                        <Badge key={index} variant="outline" className="text-xs">
                           {objective}
-                        </li>
+                        </Badge>
                       ))}
-                    </ul>
+                    </div>
                   </div>
-                  
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleStatusChange(activity.id, 'in_progress')}
-                      disabled={activity.status === 'in_progress'}
-                    >
-                      Start Activity
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleStatusChange(activity.id, 'completed')}
-                      disabled={activity.status === 'completed'}
-                    >
-                      Mark Complete
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {/* Edit activity */}}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDeleteActivity(activity.id, activity.title)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                )}
+
+                <div>
+                  <span className="font-semibold text-sm">Your Children:</span>
+                  <p className="text-gray-600 text-sm mt-1">
+                    {activity.children_participating} children can participate
+                  </p>
+                </div>
+
+                {activity.max_participants && (
+                  <div>
+                    <span className="font-semibold text-sm">Max Participants:</span>
+                    <p className="text-gray-600 text-sm mt-1">{activity.max_participants}</p>
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
+                )}
+
+                {activity.weather_dependent && (
+                  <div className="bg-yellow-50 border border-yellow-200 p-2 rounded">
+                    <p className="text-yellow-800 text-sm">
+                      ⚠️ Weather dependent activity
+                    </p>
+                  </div>
+                )}
+
+                {activity.teacher_notes && (
+                  <div>
+                    <span className="font-semibold text-sm">Teacher Notes:</span>
+                    <p className="text-gray-600 text-sm mt-1">{activity.teacher_notes}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {/* Edit activity */}}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {/* View details */}}
+                  >
+                    View Details
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      {activities.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">No activities planned for this date.</p>
+          <p className="text-gray-400 mt-2">
+            Try selecting a different date or add a new activity.
+          </p>
+        </div>
+      )}
+
+      {/* Add Activity Modal */}
+      {showAddForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">Add New Activity</h2>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Activity Name</Label>
+                <Input
+                  id="name"
+                  value={activityForm.name}
+                  onChange={(e) => setActivityForm({...activityForm, name: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={activityForm.description}
+                  onChange={(e) => setActivityForm({...activityForm, description: e.target.value})}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <select
+                    id="category"
+                    value={activityForm.category}
+                    onChange={(e) => setActivityForm({...activityForm, category: e.target.value as any})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="art">Art</option>
+                    <option value="music">Music</option>
+                    <option value="outdoor">Outdoor</option>
+                    <option value="learning">Learning</option>
+                    <option value="sensory">Sensory</option>
+                    <option value="physical">Physical</option>
+                    <option value="dramatic_play">Dramatic Play</option>
+                    <option value="science">Science</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="max_participants">Max Participants</Label>
+                  <Input
+                    id="max_participants"
+                    type="number"
+                    value={activityForm.max_participants}
+                    onChange={(e) => setActivityForm({...activityForm, max_participants: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="start_time">Start Time</Label>
+                  <Input
+                    id="start_time"
+                    type="time"
+                    value={activityForm.start_time}
+                    onChange={(e) => setActivityForm({...activityForm, start_time: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="end_time">End Time</Label>
+                  <Input
+                    id="end_time"
+                    type="time"
+                    value={activityForm.end_time}
+                    onChange={(e) => setActivityForm({...activityForm, end_time: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="age_groups">Age Groups</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {['infant', 'toddler', 'preschool'].map((ageGroup) => (
+                    <label key={ageGroup} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={activityForm.age_groups.includes(ageGroup)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setActivityForm({
+                              ...activityForm,
+                              age_groups: [...activityForm.age_groups, ageGroup]
+                            })
+                          } else {
+                            setActivityForm({
+                              ...activityForm,
+                              age_groups: activityForm.age_groups.filter(ag => ag !== ageGroup)
+                            })
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      {ageGroup}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="materials_needed">Materials Needed (comma-separated)</Label>
+                <Input
+                  id="materials_needed"
+                  value={activityForm.materials_needed}
+                  onChange={(e) => setActivityForm({...activityForm, materials_needed: e.target.value})}
+                  placeholder="paint, paper, brushes"
+                />
+              </div>
+              <div>
+                <Label htmlFor="learning_objectives">Learning Objectives (comma-separated)</Label>
+                <Input
+                  id="learning_objectives"
+                  value={activityForm.learning_objectives}
+                  onChange={(e) => setActivityForm({...activityForm, learning_objectives: e.target.value})}
+                  placeholder="color recognition, fine motor skills"
+                />
+              </div>
+              <div>
+                <Label htmlFor="teacher_notes">Teacher Notes</Label>
+                <Textarea
+                  id="teacher_notes"
+                  value={activityForm.teacher_notes}
+                  onChange={(e) => setActivityForm({...activityForm, teacher_notes: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={activityForm.weather_dependent}
+                    onChange={(e) => setActivityForm({...activityForm, weather_dependent: e.target.checked})}
+                    className="mr-2"
+                  />
+                  Weather dependent activity
+                </label>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <Button onClick={handleAddActivity} className="flex-1">Add Activity</Button>
+              <Button variant="outline" onClick={() => setShowAddForm(false)} className="flex-1">Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

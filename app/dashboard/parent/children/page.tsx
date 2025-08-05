@@ -1,100 +1,211 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSupabase } from '@/components/providers/supabase-provider'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Baby, 
-  Calendar, 
-  Users, 
-  Shield,
-  Edit,
-  AlertTriangle,
-  Phone,
-  Mail,
-  Plus
-} from 'lucide-react'
-import toast from 'react-hot-toast'
-import { getAge } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Database } from '@/types/database'
+import RoleGuard from '@/components/guards/roleGuard'
 
-interface Child {
-  id: string
-  first_name: string
-  last_name: string
-  date_of_birth: string
-  age_group: 'infant' | 'toddler' | 'preschool'
+type Child = Database['public']['Tables']['children']['Row'] & {
+  parent_name: string | null
+  parent_email: string
+  parent_phone: string | null
   teacher_name: string | null
-  allergies: string[] | null
-  medical_notes: string | null
-  enrollment_date: string
-  status: 'active' | 'inactive' | 'waitlist'
-  emergency_contact: string | null
-  last_daily_log: string | null
-  attendance_this_week: number
-  total_attendance_days: number
+  attendance_today: boolean
+  mood_today: 'happy' | 'sad' | 'tired' | 'energetic' | 'neutral' | 'fussy' | 'excited' | null
 }
 
 export default function ParentChildrenPage() {
   const { user, client, role } = useSupabase()
   const [children, setChildren] = useState<Child[]>([])
   const [loading, setLoading] = useState(true)
-
-  // Dummy data for testing
-  const dummyChildren: Child[] = [
-    {
-      id: '1',
-      first_name: 'Emma',
-      last_name: 'Johnson',
-      date_of_birth: '2021-03-15',
-      age_group: 'toddler',
-      teacher_name: 'Sarah Johnson',
-      allergies: ['peanuts', 'dairy'],
-      medical_notes: 'Asthma - uses inhaler as needed',
-      enrollment_date: '2024-01-15',
-      status: 'active',
-      emergency_contact: '+1 (555) 999-8888',
-      last_daily_log: '2024-03-15T16:30:00Z',
-      attendance_this_week: 5,
-      total_attendance_days: 45
-    },
-    {
-      id: '2',
-      first_name: 'Liam',
-      last_name: 'Chen',
-      date_of_birth: '2020-08-22',
-      age_group: 'preschool',
-      teacher_name: 'Michael Chen',
-      allergies: null,
-      medical_notes: null,
-      enrollment_date: '2024-02-01',
-      status: 'active',
-      emergency_contact: '+1 (555) 888-7777',
-      last_daily_log: '2024-03-15T16:45:00Z',
-      attendance_this_week: 4,
-      total_attendance_days: 32
-    }
-  ]
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterGroup, setFilterGroup] = useState<string>('all')
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [editingChild, setEditingChild] = useState<Child | null>(null)
+  const [childForm, setChildForm] = useState({
+    first_name: '',
+    last_name: '',
+    date_of_birth: '',
+    age_group: 'toddler' as 'infant' | 'toddler' | 'preschool',
+    allergies: '',
+    medical_notes: '',
+    emergency_contact: ''
+  })
 
   useEffect(() => {
-    // Use dummy data for testing
-    setChildren(dummyChildren)
-    setLoading(false)
-  }, [])
+    if (user && client) {
+      fetchChildren()
+    }
+  }, [user, client])
 
-  const handleEnrollChild = () => {
-    // Navigate to enrollment form
-    window.location.href = '/dashboard/enroll'
+  const fetchChildren = async () => {
+    if (!user || !client) return
+
+    try {
+      setLoading(true)
+      
+      // Fetch children with parent and teacher information
+      const { data: childrenData, error } = await client
+        .from('children_with_parents')
+        .select('*')
+        .eq('parent_id', user.id)
+        .eq('status', 'active')
+
+      if (error) {
+        console.error('Error fetching children:', error)
+        return
+      }
+
+      // Fetch today's attendance for mood information
+      const today = new Date().toISOString().split('T')[0]
+      const { data: attendanceData, error: attendanceError } = await client
+        .from('attendance')
+        .select('child_id, status')
+        .eq('date', today)
+
+      if (attendanceError) {
+        console.error('Error fetching attendance:', attendanceError)
+      }
+
+      // Fetch today's daily logs for mood information
+      const { data: dailyLogsData, error: logsError } = await client
+        .from('daily_logs')
+        .select('child_id, mood')
+        .eq('date', today)
+
+      if (logsError) {
+        console.error('Error fetching daily logs:', logsError)
+      }
+
+      // Combine the data
+      const childrenWithAttendance = childrenData?.map(child => {
+        const attendance = attendanceData?.find(a => a.child_id === child.child_id)
+        const dailyLog = dailyLogsData?.find(d => d.child_id === child.child_id)
+        
+        return {
+          ...child,
+          id: child.child_id,
+          attendance_today: attendance?.status === 'present',
+          mood_today: dailyLog?.mood || null
+        }
+      }) || []
+
+      setChildren(childrenWithAttendance)
+    } catch (error) {
+      console.error('Error fetching children:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'default'
-      case 'inactive': return 'secondary'
-      case 'waitlist': return 'destructive'
-      default: return 'secondary'
+  const filteredChildren = children.filter(child => {
+    const matchesSearch = 
+      child.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      child.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesFilter = filterGroup === 'all' || child.age_group === filterGroup
+    
+    return matchesSearch && matchesFilter
+  })
+
+  const handleAddChild = async () => {
+    if (!user || !client) return
+
+    try {
+      const { error } = await client
+        .from('children')
+        .insert({
+          first_name: childForm.first_name,
+          last_name: childForm.last_name,
+          date_of_birth: childForm.date_of_birth,
+          age_group: childForm.age_group,
+          parent_id: user.id,
+          allergies: childForm.allergies ? childForm.allergies.split(',').map(a => a.trim()) : null,
+          medical_notes: childForm.medical_notes || null,
+          emergency_contact: childForm.emergency_contact || null,
+          status: 'active',
+          enrollment_date: new Date().toISOString().split('T')[0]
+        })
+
+      if (error) {
+        console.error('Error adding child:', error)
+        return
+      }
+
+      setShowAddForm(false)
+      setChildForm({
+        first_name: '',
+        last_name: '',
+        date_of_birth: '',
+        age_group: 'toddler',
+        allergies: '',
+        medical_notes: '',
+        emergency_contact: ''
+      })
+      fetchChildren()
+    } catch (error) {
+      console.error('Error adding child:', error)
     }
+  }
+
+  const handleEditChild = async () => {
+    if (!editingChild || !client) return
+
+    try {
+      const { error } = await client
+        .from('children')
+        .update({
+          first_name: childForm.first_name,
+          last_name: childForm.last_name,
+          date_of_birth: childForm.date_of_birth,
+          age_group: childForm.age_group,
+          allergies: childForm.allergies ? childForm.allergies.split(',').map(a => a.trim()) : null,
+          medical_notes: childForm.medical_notes || null,
+          emergency_contact: childForm.emergency_contact || null
+        })
+        .eq('id', editingChild.id)
+
+      if (error) {
+        console.error('Error updating child:', error)
+        return
+      }
+
+      setShowEditForm(false)
+      setEditingChild(null)
+      setChildForm({
+        first_name: '',
+        last_name: '',
+        date_of_birth: '',
+        age_group: 'toddler',
+        allergies: '',
+        medical_notes: '',
+        emergency_contact: ''
+      })
+      fetchChildren()
+    } catch (error) {
+      console.error('Error updating child:', error)
+    }
+  }
+
+  const openEditForm = (child: Child) => {
+    setEditingChild(child)
+    setChildForm({
+      first_name: child.first_name,
+      last_name: child.last_name,
+      date_of_birth: child.date_of_birth,
+      age_group: child.age_group,
+      allergies: child.allergies?.join(', ') || '',
+      medical_notes: child.medical_notes || '',
+      emergency_contact: child.emergency_contact || ''
+    })
+    setShowEditForm(true)
   }
 
   const getAgeGroupColor = (ageGroup: string) => {
@@ -106,200 +217,311 @@ export default function ParentChildrenPage() {
     }
   }
 
-  if (role !== 'parent') {
+  const getMoodColor = (mood: string | null) => {
+    switch (mood) {
+      case 'happy': return 'bg-green-100 text-green-800'
+      case 'sad': return 'bg-blue-100 text-blue-800'
+      case 'tired': return 'bg-yellow-100 text-yellow-800'
+      case 'energetic': return 'bg-orange-100 text-orange-800'
+      case 'fussy': return 'bg-red-100 text-red-800'
+      case 'excited': return 'bg-pink-100 text-pink-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">Parent privileges required.</p>
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading children...</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <Baby className="h-8 w-8 mr-3" />
-            My Children
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Manage your children's information and enrollment
-          </p>
-        </div>
+    <RoleGuard path="/dashboard/parent/children">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">My Children</h1>
+        <Button onClick={() => setShowAddForm(true)}>Add Child</Button>
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Baby className="h-8 w-8 text-blue-500 mr-3" />
+      {/* Search and Filter */}
+      <div className="flex gap-4 mb-6">
+        <div className="flex-1">
+          <Input
+            placeholder="Search children..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <select
+          value={filterGroup}
+          onChange={(e) => setFilterGroup(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md"
+        >
+          <option value="all">All Ages</option>
+          <option value="infant">Infant</option>
+          <option value="toddler">Toddler</option>
+          <option value="preschool">Preschool</option>
+        </select>
+      </div>
+
+      {/* Children Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredChildren.map((child) => (
+          <Card key={child.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm text-gray-600">Enrolled Children</p>
-                  <p className="text-2xl font-bold">{children.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-green-500 mr-3" />
-                <div>
-                  <p className="text-sm text-gray-600">Active Children</p>
-                  <p className="text-2xl font-bold">{children.filter(c => c.status === 'active').length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Calendar className="h-8 w-8 text-purple-500 mr-3" />
-                <div>
-                  <p className="text-sm text-gray-600">Avg Attendance</p>
-                  <p className="text-2xl font-bold">
-                    {children.length > 0 
-                      ? Math.round(children.reduce((sum, c) => sum + c.attendance_this_week, 0) / children.length)
-                      : 0
-                    } days/week
+                  <CardTitle className="text-xl">
+                    {child.first_name} {child.last_name}
+                  </CardTitle>
+                  <p className="text-gray-600">
+                    Age: {new Date().getFullYear() - new Date(child.date_of_birth).getFullYear()} years old
                   </p>
                 </div>
+                <div className="flex gap-2">
+                  <Badge className={getAgeGroupColor(child.age_group)}>
+                    {child.age_group}
+                  </Badge>
+                  {child.mood_today && (
+                    <Badge className={getMoodColor(child.mood_today)}>
+                      {child.mood_today}
+                    </Badge>
+                  )}
+                </div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <AlertTriangle className="h-8 w-8 text-orange-500 mr-3" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-gray-600">With Allergies</p>
-                  <p className="text-2xl font-bold">
-                    {children.filter(c => c.allergies && c.allergies.length > 0).length}
+                  <Label className="font-semibold">Teacher:</Label>
+                  <p className="text-gray-600">
+                    {child.teacher_name || 'Not assigned'}
                   </p>
+                </div>
+                
+                <div>
+                  <Label className="font-semibold">Today's Status:</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className={`w-3 h-3 rounded-full ${child.attendance_today ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                    <span className={child.attendance_today ? 'text-green-600' : 'text-gray-500'}>
+                      {child.attendance_today ? 'Present' : 'Not checked in'}
+                    </span>
+                  </div>
+                </div>
+
+                {child.allergies && child.allergies.length > 0 && (
+                  <div>
+                    <Label className="font-semibold">Allergies:</Label>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {child.allergies.map((allergy, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {allergy}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {child.medical_notes && (
+                  <div>
+                    <Label className="font-semibold">Medical Notes:</Label>
+                    <p className="text-gray-600 text-sm mt-1">{child.medical_notes}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openEditForm(child)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.location.href = `/dashboard/parent/children/${child.id}`}
+                  >
+                    View Details
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </div>
+        ))}
+      </div>
 
-        {/* Add Child Button */}
-        <div className="mb-6">
-          <Button onClick={handleEnrollChild}>
-            <Plus className="h-4 w-4 mr-2" />
-            Enroll New Child
-          </Button>
-        </div>
-
-        {/* Children List */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {loading ? (
-            <div className="col-span-full text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading children...</p>
-            </div>
-          ) : children.length === 0 ? (
-            <div className="col-span-full text-center py-8">
-              <Baby className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No children enrolled yet</p>
-              <Button className="mt-4" onClick={handleEnrollChild}>
-                <Plus className="h-4 w-4 mr-2" />
-                Enroll Your First Child
-              </Button>
-            </div>
-          ) : (
-            children.map((child) => (
-              <Card key={child.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{child.first_name} {child.last_name}</CardTitle>
-                      <CardDescription className="mt-1">
-                        Teacher: {child.teacher_name || 'Unassigned'}
-                      </CardDescription>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Badge variant={getStatusColor(child.status) as any}>
-                        {child.status}
-                      </Badge>
-                      <span className={`text-xs px-2 py-1 rounded-full ${getAgeGroupColor(child.age_group)}`}>
-                        {child.age_group}
-                      </span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center text-sm">
-                    <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>Age: {getAge(child.date_of_birth)} years old</span>
-                  </div>
-                  
-                  <div className="flex items-center text-sm">
-                    <Users className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>Attendance: {child.attendance_this_week}/5 days this week</span>
-                  </div>
-                  
-                  <div className="flex items-center text-sm">
-                    <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>Enrolled: {new Date(child.enrollment_date).toLocaleDateString()}</span>
-                  </div>
-                  
-                  {child.last_daily_log && (
-                    <div className="flex items-center text-sm">
-                      <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                      <span>Last update: {new Date(child.last_daily_log).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  
-                  {child.allergies && child.allergies.length > 0 && (
-                    <div className="flex items-start text-sm">
-                      <AlertTriangle className="h-4 w-4 mr-2 text-red-500 mt-0.5" />
-                      <span>Allergies: {child.allergies.join(', ')}</span>
-                    </div>
-                  )}
-                  
-                  {child.medical_notes && (
-                    <div className="text-sm text-gray-600 bg-yellow-50 p-2 rounded">
-                      <strong>Medical Notes:</strong> {child.medical_notes}
-                    </div>
-                  )}
-                  
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => window.location.href = `/dashboard/portfolio?child=${child.id}`}
-                    >
-                      View Portfolio
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => window.location.href = `/dashboard/reports?child=${child.id}`}
-                    >
-                      View Reports
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {/* Edit child info */}}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+      {filteredChildren.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">No children found.</p>
+          {searchTerm && (
+            <p className="text-gray-400 mt-2">Try adjusting your search terms.</p>
           )}
         </div>
+      )}
+
+      {/* Add Child Modal */}
+      {showAddForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Add New Child</h2>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="first_name">First Name</Label>
+                <Input
+                  id="first_name"
+                  value={childForm.first_name}
+                  onChange={(e) => setChildForm({...childForm, first_name: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="last_name">Last Name</Label>
+                <Input
+                  id="last_name"
+                  value={childForm.last_name}
+                  onChange={(e) => setChildForm({...childForm, last_name: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="date_of_birth">Date of Birth</Label>
+                <Input
+                  id="date_of_birth"
+                  type="date"
+                  value={childForm.date_of_birth}
+                  onChange={(e) => setChildForm({...childForm, date_of_birth: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="age_group">Age Group</Label>
+                <select
+                  id="age_group"
+                  value={childForm.age_group}
+                  onChange={(e) => setChildForm({...childForm, age_group: e.target.value as 'infant' | 'toddler' | 'preschool'})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="infant">Infant</option>
+                  <option value="toddler">Toddler</option>
+                  <option value="preschool">Preschool</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="allergies">Allergies (comma-separated)</Label>
+                <Input
+                  id="allergies"
+                  value={childForm.allergies}
+                  onChange={(e) => setChildForm({...childForm, allergies: e.target.value})}
+                  placeholder="peanuts, dairy, eggs"
+                />
+              </div>
+              <div>
+                <Label htmlFor="medical_notes">Medical Notes</Label>
+                <Textarea
+                  id="medical_notes"
+                  value={childForm.medical_notes}
+                  onChange={(e) => setChildForm({...childForm, medical_notes: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="emergency_contact">Emergency Contact</Label>
+                <Input
+                  id="emergency_contact"
+                  value={childForm.emergency_contact}
+                  onChange={(e) => setChildForm({...childForm, emergency_contact: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <Button onClick={handleAddChild} className="flex-1">Add Child</Button>
+              <Button variant="outline" onClick={() => setShowAddForm(false)} className="flex-1">Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Child Modal */}
+      {showEditForm && editingChild && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Edit Child</h2>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit_first_name">First Name</Label>
+                <Input
+                  id="edit_first_name"
+                  value={childForm.first_name}
+                  onChange={(e) => setChildForm({...childForm, first_name: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_last_name">Last Name</Label>
+                <Input
+                  id="edit_last_name"
+                  value={childForm.last_name}
+                  onChange={(e) => setChildForm({...childForm, last_name: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_date_of_birth">Date of Birth</Label>
+                <Input
+                  id="edit_date_of_birth"
+                  type="date"
+                  value={childForm.date_of_birth}
+                  onChange={(e) => setChildForm({...childForm, date_of_birth: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_age_group">Age Group</Label>
+                <select
+                  id="edit_age_group"
+                  value={childForm.age_group}
+                  onChange={(e) => setChildForm({...childForm, age_group: e.target.value as 'infant' | 'toddler' | 'preschool'})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="infant">Infant</option>
+                  <option value="toddler">Toddler</option>
+                  <option value="preschool">Preschool</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="edit_allergies">Allergies (comma-separated)</Label>
+                <Input
+                  id="edit_allergies"
+                  value={childForm.allergies}
+                  onChange={(e) => setChildForm({...childForm, allergies: e.target.value})}
+                  placeholder="peanuts, dairy, eggs"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_medical_notes">Medical Notes</Label>
+                <Textarea
+                  id="edit_medical_notes"
+                  value={childForm.medical_notes}
+                  onChange={(e) => setChildForm({...childForm, medical_notes: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_emergency_contact">Emergency Contact</Label>
+                <Input
+                  id="edit_emergency_contact"
+                  value={childForm.emergency_contact}
+                  onChange={(e) => setChildForm({...childForm, emergency_contact: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <Button onClick={handleEditChild} className="flex-1">Update Child</Button>
+              <Button variant="outline" onClick={() => setShowEditForm(false)} className="flex-1">Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
-    </div>
+      </div>
+    </RoleGuard>
   )
 } 

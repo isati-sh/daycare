@@ -37,6 +37,7 @@ export async function middleware(req: NextRequest) {
     const {
       data: { session },
     } = await supabase.auth.getSession();
+    
 
     if (session) {
       const { error: cookieError } = await supabase.auth.setSession({
