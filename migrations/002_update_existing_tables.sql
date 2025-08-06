@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS children (
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
   date_of_birth DATE NOT NULL,
+  gender TEXT NOT NULL,
   age_group child_age_group,
   parent_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   teacher_id UUID REFERENCES profiles(id),

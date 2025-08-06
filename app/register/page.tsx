@@ -43,61 +43,38 @@ export default function RegisterPage() {
     // Wait for user to load
     if (user === undefined) return
 
-    // Helper to check users table
-    const checkUsersTable = async () => {
-      // 1. Check if users table is empty
+    const checkAccess = async () => {
+      // 1. Check if users table is empty to determine if this is the first user
       const { data: users, error: usersError } = await client
         .from('profiles')
-        .select('id, site_role')
+        .select('id')
         .limit(1)
 
-      if (usersError) {
-        // If error, be safe and deny access
-        setHasAccess(false)
-        setAccessChecked(true)
-        return
-      }
-
-      if (!users || users.length === 0) {
-        // No users in table, allow access (first user)
+      if (!usersError && (!users || users.length === 0)) {
         setIsFirstUser(true)
-        setHasAccess(true)
-        setAccessChecked(true)
-        return
       }
 
-      // If not logged in, redirect to login
-      if (!user) {
-        router.replace('/login?redirectTo=/register')
-        return
+      // 2. If user is logged in, check if they already exist
+      if (user && user.email) {
+        const { data: existingUser, error: existingUserError } = await client
+          .from('profiles')
+          .select('id')
+          .eq('email', user.email)
+          .single()
+
+        if (!existingUserError && existingUser) {
+          // User already exists, redirect to dashboard
+          router.replace('/dashboard')
+          return
+        }
       }
 
-      // 2. Check if user exists in users table
-      const { data: profile, error: profileError } = await client
-        .from('profiles')
-        .select('site_role')
-        .eq('id', user.id)
-        .single()
-
-      if (!profile || profileError) {
-        // Not in users table, allow access (could be new admin)
-        setHasAccess(true)
-        setAccessChecked(true)
-        return
-      }
-
-      // 3. If user exists, only allow if admin
-      if (profile.site_role === 'admin') {
-        setHasAccess(true)
-      } else {
-        setHasAccess(false)
-        // redirect to dashboard after accessChecked
-        setTimeout(() => router.replace('/dashboard'), 100)
-      }
+      // Allow access for new users (logged in or not)
+      setHasAccess(true)
       setAccessChecked(true)
     }
 
-    checkUsersTable()
+    checkAccess()
   }, [user, router, client])
 
   const {
@@ -172,214 +149,193 @@ export default function RegisterPage() {
   }
 
   if (!accessChecked) {
-    // Still checking access
+    // Still checking if user already exists
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <span className="text-gray-500">Checking access...</span>
-      </div>
-    )
-  }
-
-  if (!hasAccess) {
-    // Should never render due to redirect, but fallback
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card>
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>
-              You do not have permission to access this page.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <Link href="/dashboard">Go to Dashboard</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <span className="text-sm sm:text-base text-gray-500">Loading...</span>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-sm sm:max-w-md w-full space-y-6 sm:space-y-8">
         <div className="text-center">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center mb-4">
-            <span className="text-white font-bold text-xl">LL</span>
+          <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+            <span className="text-white font-bold text-lg sm:text-xl">LL</span>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900">Join our family</h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Join our family</h2>
+          <p className="mt-2 text-sm sm:text-base text-gray-600">
             Create your Little Learners {isFirstUser ? 'admin' : 'parent'} account
           </p>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Create Account</CardTitle>
-            <CardDescription>
+          <CardHeader className="pb-4 sm:pb-6">
+            <CardTitle className="text-lg sm:text-xl">Create Account</CardTitle>
+            <CardDescription className="text-sm sm:text-base">
               Sign up to access your child's information and updates
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
               <div>
-                <Label htmlFor="fullName">Full Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Label htmlFor="fullName" className="text-sm sm:text-base">Full Name</Label>
+                <div className="relative mt-1">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   <Input
                     id="fullName"
                     type="text"
                     placeholder="Enter your full name"
-                    className="pl-10"
+                    className="pl-10 sm:pl-12 text-sm sm:text-base"
                     {...register('fullName')}
                   />
                 </div>
                 {errors.fullName && (
-                  <div className="flex items-center mt-1 text-sm text-red-600">
-                    <AlertCircle className="h-4 w-4 mr-1" />
+                  <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                    <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                     {errors.fullName.message}
                   </div>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Label htmlFor="email" className="text-sm sm:text-base">Email</Label>
+                <div className="relative mt-1">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   <Input
                     id="email"
                     type="email"
                     placeholder="Enter your email"
-                    className="pl-10"
+                    className="pl-10 sm:pl-12 text-sm sm:text-base"
                     {...register('email')}
                   />
                 </div>
                 {errors.email && (
-                  <div className="flex items-center mt-1 text-sm text-red-600">
-                    <AlertCircle className="h-4 w-4 mr-1" />
+                  <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                    <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                     {errors.email.message}
                   </div>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="phone">Phone</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Label htmlFor="phone" className="text-sm sm:text-base">Phone</Label>
+                <div className="relative mt-1">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   <Input
                     id="phone"
                     type="tel"
                     placeholder="Enter your phone number"
-                    className="pl-10"
+                    className="pl-10 sm:pl-12 text-sm sm:text-base"
                     {...register('phone')}
                   />
                 </div>
                 {errors.phone && (
-                  <div className="flex items-center mt-1 text-sm text-red-600">
-                    <AlertCircle className="h-4 w-4 mr-1" />
+                  <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                    <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                     {errors.phone.message}
                   </div>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="address">Address</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Label htmlFor="address" className="text-sm sm:text-base">Address</Label>
+                <div className="relative mt-1">
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   <Input
                     id="address"
                     type="text"
                     placeholder="Enter your address"
-                    className="pl-10"
+                    className="pl-10 sm:pl-12 text-sm sm:text-base"
                     {...register('address')}
                   />
                 </div>
                 {errors.address && (
-                  <div className="flex items-center mt-1 text-sm text-red-600">
-                    <AlertCircle className="h-4 w-4 mr-1" />
+                  <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                    <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                     {errors.address.message}
                   </div>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="emergencyContact">Emergency Contact</Label>
-                <div className="relative">
-                  <Contact className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Label htmlFor="emergencyContact" className="text-sm sm:text-base">Emergency Contact</Label>
+                <div className="relative mt-1">
+                  <Contact className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   <Input
                     id="emergencyContact"
                     type="text"
                     placeholder="Enter emergency contact"
-                    className="pl-10"
+                    className="pl-10 sm:pl-12 text-sm sm:text-base"
                     {...register('emergencyContact')}
                   />
                 </div>
                 {errors.emergencyContact && (
-                  <div className="flex items-center mt-1 text-sm text-red-600">
-                    <AlertCircle className="h-4 w-4 mr-1" />
+                  <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                    <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                     {errors.emergencyContact.message}
                   </div>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Label htmlFor="password" className="text-sm sm:text-base">Password</Label>
+                <div className="relative mt-1">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Create a password"
-                    className="pl-10 pr-10"
+                    className="pl-10 sm:pl-12 pr-10 sm:pr-12 text-sm sm:text-base"
                     {...register('password')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
+                      <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
                     ) : (
-                      <Eye className="h-5 w-5" />
+                      <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                     )}
                   </button>
                 </div>
                 {errors.password && (
-                  <div className="flex items-center mt-1 text-sm text-red-600">
-                    <AlertCircle className="h-4 w-4 mr-1" />
+                  <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                    <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                     {errors.password.message}
                   </div>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Label htmlFor="confirmPassword" className="text-sm sm:text-base">Confirm Password</Label>
+                <div className="relative mt-1">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
                     placeholder="Confirm your password"
-                    className="pl-10 pr-10"
+                    className="pl-10 sm:pl-12 pr-10 sm:pr-12 text-sm sm:text-base"
                     {...register('confirmPassword')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5" />
+                      <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
                     ) : (
-                      <Eye className="h-5 w-5" />
+                      <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                     )}
                   </button>
                 </div>
                 {errors.confirmPassword && (
-                  <div className="flex items-center mt-1 text-sm text-red-600">
-                    <AlertCircle className="h-4 w-4 mr-1" />
+                  <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                    <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                     {errors.confirmPassword.message}
                   </div>
                 )}
@@ -387,7 +343,7 @@ export default function RegisterPage() {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full text-sm sm:text-base py-2 sm:py-3"
                 disabled={isLoading}
               >
                 {isLoading ? 'Creating account...' : 'Create Account'}

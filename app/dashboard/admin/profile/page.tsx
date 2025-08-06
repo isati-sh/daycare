@@ -196,7 +196,7 @@ export default function ProfilePage() {
                 {/* Profile Avatar */}
                 <div className="relative">
                   <div className="w-24 h-24 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-2xl font-bold backdrop-blur-sm">
-                    {getInitials(profile?.full_name)}
+                    {getInitials(profile?.full_name ?? null)}
                   </div>
                   <Button 
                     size="sm" 

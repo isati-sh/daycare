@@ -312,26 +312,26 @@ export default function MessagesPage() {
 
         {/* Compose Message Modal */}
         {showCompose && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white rounded-lg max-w-sm sm:max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                     New Message
                   </h2>
-                  <Button variant="ghost" onClick={() => setShowCompose(false)}>
+                  <Button variant="ghost" onClick={() => setShowCompose(false)} className="p-1 sm:p-2">
                     ×
                   </Button>
                 </div>
 
-                <form onSubmit={sendMessage} className="space-y-6">
+                <form onSubmit={sendMessage} className="space-y-4 sm:space-y-6">
                   <div>
-                    <Label htmlFor="recipient">To</Label>
+                    <Label htmlFor="recipient" className="text-xs sm:text-sm">To</Label>
                     <select
                       id="recipient"
                       value={composeForm.recipient_id}
                       onChange={(e) => setComposeForm({ ...composeForm, recipient_id: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm sm:text-base h-10 sm:h-12 mt-1"
                       required
                     >
                       <option value="">Select recipient...</option>
@@ -344,33 +344,35 @@ export default function MessagesPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="subject">Subject</Label>
+                    <Label htmlFor="subject" className="text-xs sm:text-sm">Subject</Label>
                     <Input
                       id="subject"
                       value={composeForm.subject}
                       onChange={(e) => setComposeForm({ ...composeForm, subject: e.target.value })}
                       placeholder="Enter subject..."
+                      className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                       required
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="content">Message</Label>
+                    <Label htmlFor="content" className="text-xs sm:text-sm">Message</Label>
                     <Textarea
                       id="content"
                       value={composeForm.content}
                       onChange={(e) => setComposeForm({ ...composeForm, content: e.target.value })}
                       placeholder="Type your message..."
                       rows={6}
+                      className="text-sm sm:text-base mt-1 min-h-[120px] sm:min-h-[150px]"
                       required
                     />
                   </div>
 
-                  <div className="flex justify-end space-x-4">
-                    <Button type="button" variant="outline" onClick={() => setShowCompose(false)}>
+                  <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4">
+                    <Button type="button" variant="outline" onClick={() => setShowCompose(false)} className="h-10 sm:h-12 text-sm sm:text-base">
                       Cancel
                     </Button>
-                    <Button type="submit">
+                    <Button type="submit" className="h-10 sm:h-12 text-sm sm:text-base">
                       <Send className="h-4 w-4 mr-2" />
                       Send Message
                     </Button>

@@ -17,7 +17,8 @@ import {
   Trash2,
   Shield,
   UserCheck,
-  Baby
+  Baby,
+  Contact
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -35,7 +36,7 @@ interface Parent {
 }
 
 export default function AdminParentsPage() {
-  const { user, client, isAdmin } = useSupabase()
+  const { user, client } = useSupabase()
   const [parents, setParents] = useState<Parent[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -51,51 +52,67 @@ export default function AdminParentsPage() {
     active_status: true
   })
 
-  // Dummy data for testing
-  const dummyParents: Parent[] = [
-    {
-      id: '1',
-      email: 'parent1@example.com',
-      full_name: 'John Smith',
-      phone: '+1 (555) 111-2222',
-      address: '123 Parent St, City, State',
-      emergency_contact: '+1 (555) 999-8888',
-      created_at: '2024-01-10',
-      children_count: 2,
-      active_status: true,
-      last_login: '2024-03-15T10:30:00Z'
-    },
-    {
-      id: '2',
-      email: 'parent2@example.com',
-      full_name: 'Maria Garcia',
-      phone: '+1 (555) 222-3333',
-      address: '456 Family Ave, City, State',
-      emergency_contact: '+1 (555) 888-7777',
-      created_at: '2024-02-05',
-      children_count: 1,
-      active_status: true,
-      last_login: '2024-03-14T15:45:00Z'
-    },
-    {
-      id: '3',
-      email: 'parent3@example.com',
-      full_name: 'David Wilson',
-      phone: '+1 (555) 333-4444',
-      address: '789 Home Rd, City, State',
-      emergency_contact: '+1 (555) 777-6666',
-      created_at: '2024-01-25',
-      children_count: 3,
-      active_status: false,
-      last_login: '2024-03-10T09:15:00Z'
-    }
-  ]
-
   useEffect(() => {
-    // Use dummy data for testing
-    setParents(dummyParents)
-    setLoading(false)
-  }, [])
+    if (user && client) {
+      fetchParents()
+    }
+  }, [user, client])
+
+  const fetchParents = async () => {
+    if (!user || !client) return
+
+    try {
+      setLoading(true)
+
+      // Fetch parents from profiles table
+      const { data: parentsData, error: parentsError } = await client
+        .from('profiles')
+        .select('*')
+        .eq('site_role', 'parent')
+        .order('created_at', { ascending: false })
+
+      if (parentsError) {
+        console.error('Error fetching parents:', parentsError)
+        toast.error('Failed to load parents')
+        return
+      }
+
+      // Fetch children count for each parent
+      const parentsWithChildrenCount = await Promise.all(
+        parentsData.map(async (parent) => {
+          const { data: childrenData, error: childrenError } = await client
+            .from('children')
+            .select('id')
+            .eq('parent_id', parent.id)
+            .eq('status', 'active')
+
+          if (childrenError) {
+            console.error('Error fetching children for parent:', childrenError)
+          }
+
+          return {
+            id: parent.id,
+            email: parent.email,
+            full_name: parent.full_name,
+            phone: parent.phone,
+            address: parent.address,
+            emergency_contact: parent.emergency_contact,
+            created_at: parent.created_at,
+            children_count: childrenData?.length || 0,
+            active_status: parent.active_status,
+            last_login: parent.last_login
+          }
+        })
+      )
+
+      setParents(parentsWithChildrenCount)
+    } catch (error) {
+      console.error('Error fetching parents:', error)
+      toast.error('Failed to load parents')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const resetForm = () => {
     setParentForm({
@@ -108,29 +125,44 @@ export default function AdminParentsPage() {
     })
   }
 
-  const handleAddParent = () => {
-    if (!parentForm.email || !parentForm.full_name) {
-      toast.error('Please fill in required fields')
-      return
-    }
+  const handleAddParent = async () => {
+    if (!client) return
 
-    const newParent: Parent = {
-      id: Date.now().toString(),
-      email: parentForm.email,
-      full_name: parentForm.full_name,
-      phone: parentForm.phone || null,
-      address: parentForm.address || null,
-      emergency_contact: parentForm.emergency_contact || null,
-      created_at: new Date().toISOString(),
-      children_count: 0,
-      active_status: parentForm.active_status,
-      last_login: null
-    }
+    try {
+      // Validate required fields
+      if (!parentForm.email || !parentForm.full_name) {
+        toast.error('Email and full name are required')
+        return
+      }
 
-    setParents([...parents, newParent])
-    resetForm()
-    setShowAddForm(false)
-    toast.success('Parent added successfully!')
+      // Create new parent profile
+      const { data, error } = await client
+        .from('profiles')
+        .insert({
+          email: parentForm.email,
+          full_name: parentForm.full_name,
+          phone: parentForm.phone || null,
+          address: parentForm.address || null,
+          emergency_contact: parentForm.emergency_contact || null,
+          active_status: parentForm.active_status,
+          site_role: 'parent'
+        })
+        .select()
+
+      if (error) {
+        console.error('Error adding parent:', error)
+        toast.error('Failed to add parent')
+        return
+      }
+
+      toast.success('Parent added successfully')
+      setShowAddForm(false)
+      resetForm()
+      fetchParents() // Refresh the list
+    } catch (error) {
+      console.error('Error adding parent:', error)
+      toast.error('Failed to add parent')
+    }
   }
 
   const handleEditParent = (parent: Parent) => {
@@ -146,29 +178,105 @@ export default function AdminParentsPage() {
     setShowEditForm(true)
   }
 
-  const handleUpdateParent = () => {
-    if (!editingParent) return
+  const handleUpdateParent = async () => {
+    if (!client || !editingParent) return
 
-    if (!parentForm.email || !parentForm.full_name) {
-      toast.error('Please fill in required fields')
+    try {
+      const { error } = await client
+        .from('profiles')
+        .update({
+          email: parentForm.email,
+          full_name: parentForm.full_name,
+          phone: parentForm.phone || null,
+          address: parentForm.address || null,
+          emergency_contact: parentForm.emergency_contact || null,
+          active_status: parentForm.active_status
+        })
+        .eq('id', editingParent.id)
+
+      if (error) {
+        console.error('Error updating parent:', error)
+        toast.error('Failed to update parent')
+        return
+      }
+
+      toast.success('Parent updated successfully')
+      setShowEditForm(false)
+      setEditingParent(null)
+      resetForm()
+      fetchParents() // Refresh the list
+    } catch (error) {
+      console.error('Error updating parent:', error)
+      toast.error('Failed to update parent')
+    }
+  }
+
+  const handleStatusChange = async (parentId: string, newStatus: boolean) => {
+    if (!client) return
+
+    try {
+      const { error } = await client
+        .from('profiles')
+        .update({ active_status: newStatus })
+        .eq('id', parentId)
+
+      if (error) {
+        console.error('Error updating parent status:', error)
+        toast.error('Failed to update parent status')
+        return
+      }
+
+      toast.success(`Parent ${newStatus ? 'activated' : 'deactivated'} successfully`)
+      fetchParents() // Refresh the list
+    } catch (error) {
+      console.error('Error updating parent status:', error)
+      toast.error('Failed to update parent status')
+    }
+  }
+
+  const handleDeleteParent = async (parentId: string, parentName: string) => {
+    if (!client) return
+
+    if (!confirm(`Are you sure you want to delete ${parentName}? This action cannot be undone.`)) {
       return
     }
 
-    const updatedParent: Parent = {
-      ...editingParent,
-      email: parentForm.email,
-      full_name: parentForm.full_name,
-      phone: parentForm.phone || null,
-      address: parentForm.address || null,
-      emergency_contact: parentForm.emergency_contact || null,
-      active_status: parentForm.active_status
-    }
+    try {
+      // Check if parent has children
+      const { data: childrenData, error: childrenError } = await client
+        .from('children')
+        .select('id')
+        .eq('parent_id', parentId)
+        .eq('status', 'active')
 
-    setParents(parents.map(p => p.id === editingParent.id ? updatedParent : p))
-    resetForm()
-    setShowEditForm(false)
-    setEditingParent(null)
-    toast.success('Parent updated successfully!')
+      if (childrenError) {
+        console.error('Error checking children:', childrenError)
+        toast.error('Failed to check children')
+        return
+      }
+
+      if (childrenData && childrenData.length > 0) {
+        toast.error('Cannot delete parent with children. Please reassign children first.')
+        return
+      }
+
+      const { error } = await client
+        .from('profiles')
+        .delete()
+        .eq('id', parentId)
+
+      if (error) {
+        console.error('Error deleting parent:', error)
+        toast.error('Failed to delete parent')
+        return
+      }
+
+      toast.success('Parent deleted successfully')
+      fetchParents() // Refresh the list
+    } catch (error) {
+      console.error('Error deleting parent:', error)
+      toast.error('Failed to delete parent')
+    }
   }
 
   const filteredParents = parents.filter(parent =>
@@ -176,341 +284,156 @@ export default function AdminParentsPage() {
     parent.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleStatusChange = async (parentId: string, newStatus: boolean) => {
-    try {
-      // Update parent status in database
-      const { error } = await client
-        .from('profiles')
-        .update({ active_status: newStatus })
-        .eq('id', parentId)
-
-      if (error) {
-        toast.error('Failed to update parent status')
-        return
-      }
-
-      // Update local state
-      setParents(prev => prev.map(parent => 
-        parent.id === parentId 
-          ? { ...parent, active_status: newStatus }
-          : parent
-      ))
-
-      toast.success(`Parent ${newStatus ? 'activated' : 'deactivated'} successfully`)
-    } catch (error) {
-      toast.error('Failed to update parent status')
-    }
-  }
-
-  const handleDeleteParent = async (parentId: string, parentName: string) => {
-    if (!confirm(`Are you sure you want to delete ${parentName}?`)) {
-      return
-    }
-
-    try {
-      // Delete parent from database
-      const { error } = await client
-        .from('profiles')
-        .delete()
-        .eq('id', parentId)
-
-      if (error) {
-        toast.error('Failed to delete parent')
-        return
-      }
-
-      // Update local state
-      setParents(prev => prev.filter(parent => parent.id !== parentId))
-      toast.success('Parent deleted successfully')
-    } catch (error) {
-      toast.error('Failed to delete parent')
-    }
-  }
-
-  if (!isAdmin) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">Admin privileges required.</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading parents...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Enhanced Header */}
-        <div className="mb-12">
-          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-2xl p-8 text-white shadow-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-bold flex items-center mb-3">
-                  <Users className="h-10 w-10 mr-4" />
-                  Parent Management
-                </h1>
-                <p className="text-blue-100 text-lg">
-                  Manage parents and their families with comprehensive oversight
-                </p>
-              </div>
-              <div className="hidden lg:block">
-                <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                  <Users className="h-12 w-12 text-white" />
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Header */}
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+            <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 mr-2 sm:mr-3" />
+            Manage Parents
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-2">
+            View and manage all parents in the daycare system
+          </p>
         </div>
 
-        {/* Enhanced Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm font-medium">Total Parents</p>
-                  <p className="text-3xl font-bold mt-2">{parents.length}</p>
-                  <p className="text-blue-200 text-xs mt-1">Registered families</p>
-                </div>
-                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                  <Users className="h-7 w-7" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-emerald-100 text-sm font-medium">Active Parents</p>
-                  <p className="text-3xl font-bold mt-2">{parents.filter(p => p.active_status).length}</p>
-                  <p className="text-emerald-200 text-xs mt-1">Currently active</p>
-                </div>
-                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                  <UserCheck className="h-7 w-7" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm font-medium">Total Children</p>
-                  <p className="text-3xl font-bold mt-2">
-                    {parents.reduce((sum, p) => sum + p.children_count, 0)}
-                  </p>
-                  <p className="text-purple-200 text-xs mt-1">Under care</p>
-                </div>
-                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                  <Baby className="h-7 w-7" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100 text-sm font-medium">Avg Children/Parent</p>
-                  <p className="text-3xl font-bold mt-2">
-                    {parents.length > 0 
-                      ? (parents.reduce((sum, p) => sum + p.children_count, 0) / parents.length).toFixed(1)
-                      : 0
-                    }
-                  </p>
-                  <p className="text-orange-200 text-xs mt-1">Family size ratio</p>
-                </div>
-                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                  <Calendar className="h-7 w-7" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Enhanced Search and Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <Input
-                placeholder="Search parents by name or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 pr-4 py-3 text-lg border-0 shadow-lg bg-white/80 backdrop-blur-sm focus:bg-white focus:shadow-xl transition-all duration-300"
-              />
-            </div>
+        {/* Search and Add */}
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+            <Input
+              placeholder="Search parents..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 sm:pl-12 h-10 sm:h-12 text-sm sm:text-base"
+            />
           </div>
-          <Button onClick={() => setShowAddForm(true)} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg shadow-lg hover:shadow-xl transition-all duration-300">
-            <Plus className="h-5 w-5 mr-2" />
-            Add New Parent
+          <Button 
+            onClick={() => setShowAddForm(true)}
+            className="h-10 sm:h-12 px-4 sm:px-6 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          >
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+            Add Parent
           </Button>
         </div>
 
-        {/* Enhanced Parents Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-          {loading ? (
-            <div className="col-span-full text-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-6 text-gray-600 text-lg">Loading parents...</p>
-            </div>
-          ) : filteredParents.length === 0 ? (
-            <div className="col-span-full text-center py-16">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Users className="h-12 w-12 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No parents found</h3>
-              <p className="text-gray-600 mb-6">Try adjusting your search criteria</p>
-              <Button onClick={() => setShowAddForm(true)} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Add First Parent
-              </Button>
-            </div>
-          ) : (
-            filteredParents.map((parent) => (
-              <Card key={parent.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white/90 backdrop-blur-sm hover:scale-105">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                        {parent.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
-                      <div>
-                        <CardTitle className="text-xl font-bold text-gray-900">
-                          {parent.full_name}
-                        </CardTitle>
-                        <CardDescription className="text-gray-600 flex items-center mt-1">
-                          <Mail className="h-4 w-4 mr-1" />
-                          {parent.email}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <Badge variant={parent.active_status ? "default" : "secondary"} className={`font-medium ${
-                      parent.active_status 
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {parent.active_status ? 'Active' : 'Inactive'}
-                    </Badge>
+        {/* Parents List */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+          {filteredParents.map((parent) => (
+            <Card key={parent.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3 sm:pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-base sm:text-lg font-semibold text-gray-900">
+                      {parent.full_name}
+                    </CardTitle>
+                    <CardDescription className="text-sm sm:text-base text-gray-600 mt-1">
+                      {parent.email}
+                    </CardDescription>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center text-sm bg-gray-50 p-3 rounded-lg">
-                      <Phone className="h-4 w-4 mr-2 text-blue-500" />
-                      <div>
-                        <p className="font-medium text-gray-900">{parent.phone || 'Not provided'}</p>
-                        <p className="text-gray-500 text-xs">Phone</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center text-sm bg-gray-50 p-3 rounded-lg">
-                      <Baby className="h-4 w-4 mr-2 text-purple-500" />
-                      <div>
-                        <p className="font-medium text-gray-900">{parent.children_count}</p>
-                        <p className="text-gray-500 text-xs">Children</p>
-                      </div>
-                    </div>
+                  <Badge 
+                    variant={parent.active_status ? "default" : "secondary"}
+                    className="text-xs sm:text-sm"
+                  >
+                    {parent.active_status ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 sm:space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">
+                  <div className="flex items-center space-x-2">
+                    <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                    <span className="text-gray-600">
+                      {parent.phone || 'No phone'}
+                    </span>
                   </div>
-                  
-                  <div className="flex items-center text-sm bg-green-50 p-3 rounded-lg">
-                    <Calendar className="h-4 w-4 mr-2 text-green-500" />
-                    <div>
-                      <p className="font-medium text-gray-900">{new Date(parent.created_at).toLocaleDateString()}</p>
-                      <p className="text-gray-500 text-xs">Joined</p>
-                    </div>
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                    <span className="text-gray-600">
+                      {new Date(parent.created_at).toLocaleDateString()}
+                    </span>
                   </div>
-                  
-                  {parent.last_login && (
-                    <div className="bg-indigo-50 border border-indigo-200 p-3 rounded-lg">
-                      <div className="flex items-start">
-                        <Calendar className="h-4 w-4 text-indigo-500 mr-2 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-indigo-900 text-sm">Last Login</p>
-                          <p className="text-indigo-700 text-sm">{new Date(parent.last_login).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {parent.address && (
-                    <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg">
-                      <div className="flex items-start">
-                        <Users className="h-4 w-4 text-orange-500 mr-2 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-orange-900 text-sm">Address</p>
-                          <p className="text-orange-800 text-sm">{parent.address}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {parent.emergency_contact && (
-                    <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
-                      <div className="flex items-start">
-                        <Phone className="h-4 w-4 text-red-500 mr-2 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-red-900 text-sm">Emergency Contact</p>
-                          <p className="text-red-800 text-sm">{parent.emergency_contact}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="flex gap-2 pt-4 border-t border-gray-200">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleStatusChange(parent.id, !parent.active_status)}
-                      className={`flex-1 ${
-                        parent.active_status 
-                          ? 'hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700' 
-                          : 'hover:bg-green-50 hover:border-green-300 hover:text-green-700'
-                      }`}
-                    >
-                      {parent.active_status ? 'Deactivate' : 'Activate'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleEditParent(parent)}
-                      className="hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDeleteParent(parent.id, parent.full_name)}
-                      className="hover:bg-red-50 hover:border-red-300 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Baby className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
+                  <span className="text-xs sm:text-sm text-gray-600">
+                    {parent.children_count} children
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2 sm:pt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditParent(parent)}
+                    className="flex-1 h-8 sm:h-10 text-xs sm:text-sm"
+                  >
+                    <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant={parent.active_status ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => handleStatusChange(parent.id, !parent.active_status)}
+                    className="flex-1 h-8 sm:h-10 text-xs sm:text-sm"
+                  >
+                    {parent.active_status ? 'Deactivate' : 'Activate'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteParent(parent.id, parent.full_name)}
+                    className="flex-1 h-8 sm:h-10 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    Delete
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Enhanced Add Parent Form Modal */}
+        {filteredParents.length === 0 && (
+          <div className="text-center py-12 sm:py-16">
+            <Users className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+              {searchTerm ? 'No parents found' : 'No parents yet'}
+            </h3>
+            <p className="text-sm sm:text-base text-gray-600">
+              {searchTerm 
+                ? 'Try adjusting your search terms'
+                : 'Add your first parent to get started'
+              }
+            </p>
+          </div>
+        )}
+
+        {/* Add Parent Modal */}
         {showAddForm && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-4xl max-h-[95vh] overflow-y-auto shadow-2xl border-0 bg-white/95 backdrop-blur-md">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+            <Card className="w-full max-w-2xl sm:max-w-4xl max-h-[90vh] sm:max-h-[95vh] overflow-y-auto shadow-2xl border-0 bg-white/95 backdrop-blur-md">
               <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-2xl font-bold flex items-center">
-                      <Users className="h-7 w-7 mr-3" />
+                    <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold flex items-center">
+                      <Users className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 mr-2 sm:mr-3" />
                       Add New Parent
                     </CardTitle>
-                    <CardDescription className="text-blue-100 mt-2 text-base">
+                    <CardDescription className="text-blue-100 mt-2 text-sm sm:text-base">
                       Complete the form below to add a new parent to the daycare system
                     </CardDescription>
                   </div>
@@ -521,23 +444,23 @@ export default function AdminParentsPage() {
                       setShowAddForm(false)
                       resetForm()
                     }}
-                    className="text-white hover:bg-white/20 rounded-full p-2"
+                    className="text-white hover:bg-white/20 rounded-full p-1 sm:p-2"
                   >
                     ✕
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-8">
-                <div className="space-y-8">
+              <CardContent className="p-4 sm:p-6 md:p-8">
+                <div className="space-y-6 sm:space-y-8">
                   {/* Personal Information Section */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                      <Users className="h-5 w-5 mr-2 text-blue-600" />
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-xl border border-blue-200">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-600" />
                       Personal Information
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3 md:col-span-2">
-                        <label className="text-sm font-semibold text-gray-700 flex items-center">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                      <div className="space-y-2 sm:space-y-3 md:col-span-2">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center">
                           <span className="text-red-500 mr-1">*</span>
                           Full Name
                         </label>
@@ -545,213 +468,261 @@ export default function AdminParentsPage() {
                           value={parentForm.full_name}
                           onChange={(e) => setParentForm({...parentForm, full_name: e.target.value})}
                           placeholder="Enter parent's full name"
-                          className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-base"
+                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-sm sm:text-base"
                         />
                       </div>
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-gray-700 flex items-center">
+                      
+                      <div className="space-y-2 sm:space-y-3">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center">
                           <span className="text-red-500 mr-1">*</span>
-                          <Mail className="h-4 w-4 mr-1 text-blue-500" />
                           Email Address
                         </label>
                         <Input
-                          type="email"
                           value={parentForm.email}
                           onChange={(e) => setParentForm({...parentForm, email: e.target.value})}
                           placeholder="parent@example.com"
-                          className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-base"
+                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-sm sm:text-base"
                         />
                       </div>
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-gray-700 flex items-center">
-                          <Phone className="h-4 w-4 mr-2 text-blue-500" />
+                      
+                      <div className="space-y-2 sm:space-y-3">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
                           Phone Number
                         </label>
                         <Input
                           value={parentForm.phone}
                           onChange={(e) => setParentForm({...parentForm, phone: e.target.value})}
-                          placeholder="(555) 123-4567"
-                          className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-base"
+                          placeholder="+1 (555) 123-4567"
+                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-sm sm:text-base"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Contact Information Section */}
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                      <Shield className="h-5 w-5 mr-2 text-green-600" />
-                      Contact & Address Information
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 sm:p-6 rounded-xl border border-purple-200">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
+                      <Contact className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-purple-600" />
+                      Contact Information
                     </h3>
-                    <div className="space-y-6">
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-gray-700 flex items-center">
-                          <Users className="h-4 w-4 mr-2 text-green-500" />
-                          Home Address
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                      <div className="space-y-2 sm:space-y-3 md:col-span-2">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                          Address
                         </label>
                         <Input
                           value={parentForm.address}
                           onChange={(e) => setParentForm({...parentForm, address: e.target.value})}
-                          placeholder="Enter complete home address"
-                          className="h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 rounded-lg text-base"
+                          placeholder="Enter full address"
+                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg text-sm sm:text-base"
                         />
                       </div>
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-gray-700 flex items-center">
-                          <Phone className="h-4 w-4 mr-2 text-orange-500" />
+                      
+                      <div className="space-y-2 sm:space-y-3">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
                           Emergency Contact
                         </label>
                         <Input
                           value={parentForm.emergency_contact}
                           onChange={(e) => setParentForm({...parentForm, emergency_contact: e.target.value})}
-                          placeholder="Emergency contact name and phone number"
-                          className="h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 rounded-lg text-base"
+                          placeholder="Emergency contact number"
+                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg text-sm sm:text-base"
                         />
-                        <p className="text-xs text-gray-500">Include relationship and phone number (e.g., "John Smith (Spouse) - (555) 987-6543")</p>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Account Status Section */}
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                      <UserCheck className="h-5 w-5 mr-2 text-purple-600" />
-                      Account Status
-                    </h3>
-                    <div className="space-y-3">
-                      <label className="text-sm font-semibold text-gray-700 flex items-center">
-                        <Shield className="h-4 w-4 mr-2 text-purple-500" />
-                        Active Status
-                      </label>
-                      <select
-                        value={parentForm.active_status.toString()}
-                        onChange={(e) => setParentForm({...parentForm, active_status: e.target.value === 'true'})}
-                        className="w-full h-12 px-4 border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg text-base bg-white"
-                      >
-                        <option value="true">✅ Active - Can access parent portal</option>
-                        <option value="false">⏸️ Inactive - Limited access</option>
-                      </select>
-                      <p className="text-xs text-gray-500">Active parents can log in to view their children's information and communicate with teachers</p>
-                    </div>
-                  </div>
-
-                  {/* Additional Information Section */}
-                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-xl border border-yellow-200">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                      <Baby className="h-5 w-5 mr-2 text-yellow-600" />
-                      Family Information
-                    </h3>
-                    <div className="bg-yellow-100 border border-yellow-300 p-4 rounded-lg">
-                      <div className="flex items-start">
-                        <Calendar className="h-5 w-5 text-yellow-600 mr-3 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-yellow-900 text-sm">Next Steps</p>
-                          <p className="text-yellow-800 text-sm">After adding this parent, you can enroll their children through the Children Management page.</p>
+                      
+                      <div className="space-y-2 sm:space-y-3">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                          Status
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            id="active_status"
+                            checked={parentForm.active_status}
+                            onChange={(e) => setParentForm({...parentForm, active_status: e.target.checked})}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="active_status" className="text-xs sm:text-sm text-gray-700">
+                            Active parent
+                          </label>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Enhanced Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 mt-8 pt-6 border-t border-gray-200">
-                  <Button 
-                    onClick={handleAddParent}
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    <Plus className="h-5 w-5 mr-2" />
-                    Add Parent to System
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setShowAddForm(false)
-                      resetForm()
-                    }}
-                    className="flex-1 h-12 text-base font-semibold border-2 border-gray-300 hover:bg-gray-50 transition-all duration-300"
-                  >
-                    Cancel
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 pt-6 border-t border-gray-200">
+                    <Button 
+                      onClick={handleAddParent}
+                      className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all duration-300"
+                    >
+                      <Plus className="h-5 w-5 mr-2" />
+                      Add Parent to System
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowAddForm(false)
+                        resetForm()
+                      }}
+                      className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold border-2 border-gray-300 hover:bg-gray-50 transition-all duration-300"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         )}
 
-        {/* Edit Parent Form Modal */}
+        {/* Edit Parent Modal */}
         {showEditForm && editingParent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <CardTitle>Edit Parent Information</CardTitle>
-                <CardDescription>Update {editingParent.full_name}'s information</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-medium">Full Name *</label>
-                    <Input
-                      value={parentForm.full_name}
-                      onChange={(e) => setParentForm({...parentForm, full_name: e.target.value})}
-                      placeholder="Enter full name"
-                    />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+            <Card className="w-full max-w-2xl sm:max-w-4xl max-h-[90vh] sm:max-h-[95vh] overflow-y-auto shadow-2xl border-0 bg-white/95 backdrop-blur-md">
+              <CardHeader className="bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-t-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold flex items-center">
+                      <Edit className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 mr-2 sm:mr-3" />
+                      Edit Parent Information
+                    </CardTitle>
+                    <CardDescription className="text-green-100 mt-2 text-sm sm:text-base">
+                      Update the information for {editingParent.full_name}
+                    </CardDescription>
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-medium">Email *</label>
-                    <Input
-                      type="email"
-                      value={parentForm.email}
-                      onChange={(e) => setParentForm({...parentForm, email: e.target.value})}
-                      placeholder="Enter email address"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Phone Number</label>
-                    <Input
-                      value={parentForm.phone}
-                      onChange={(e) => setParentForm({...parentForm, phone: e.target.value})}
-                      placeholder="Enter phone number"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Emergency Contact</label>
-                    <Input
-                      value={parentForm.emergency_contact}
-                      onChange={(e) => setParentForm({...parentForm, emergency_contact: e.target.value})}
-                      placeholder="Enter emergency contact"
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-medium">Address</label>
-                    <Input
-                      value={parentForm.address}
-                      onChange={(e) => setParentForm({...parentForm, address: e.target.value})}
-                      placeholder="Enter address"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Status</label>
-                    <select
-                      value={parentForm.active_status.toString()}
-                      onChange={(e) => setParentForm({...parentForm, active_status: e.target.value === 'true'})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="true">Active</option>
-                      <option value="false">Inactive</option>
-                    </select>
-                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setShowEditForm(false)
+                      setEditingParent(null)
+                      resetForm()
+                    }}
+                    className="text-white hover:bg-white/20 rounded-full p-1 sm:p-2"
+                  >
+                    ✕
+                  </Button>
                 </div>
-                <div className="flex space-x-2 mt-6">
-                  <Button onClick={handleUpdateParent}>
-                    Update Parent
-                  </Button>
-                  <Button variant="outline" onClick={() => {
-                    setShowEditForm(false)
-                    setEditingParent(null)
-                    resetForm()
-                  }}>
-                    Cancel
-                  </Button>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 md:p-8">
+                <div className="space-y-6 sm:space-y-8">
+                  {/* Personal Information Section */}
+                  <div className="bg-gradient-to-r from-green-50 to-teal-50 p-4 sm:p-6 rounded-xl border border-green-200">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-green-600" />
+                      Personal Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                      <div className="space-y-2 sm:space-y-3 md:col-span-2">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center">
+                          <span className="text-red-500 mr-1">*</span>
+                          Full Name
+                        </label>
+                        <Input
+                          value={parentForm.full_name}
+                          onChange={(e) => setParentForm({...parentForm, full_name: e.target.value})}
+                          placeholder="Enter parent's full name"
+                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 rounded-lg text-sm sm:text-base"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2 sm:space-y-3">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center">
+                          <span className="text-red-500 mr-1">*</span>
+                          Email Address
+                        </label>
+                        <Input
+                          value={parentForm.email}
+                          onChange={(e) => setParentForm({...parentForm, email: e.target.value})}
+                          placeholder="parent@example.com"
+                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 rounded-lg text-sm sm:text-base"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2 sm:space-y-3">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                          Phone Number
+                        </label>
+                        <Input
+                          value={parentForm.phone}
+                          onChange={(e) => setParentForm({...parentForm, phone: e.target.value})}
+                          placeholder="+1 (555) 123-4567"
+                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 rounded-lg text-sm sm:text-base"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact Information Section */}
+                  <div className="bg-gradient-to-r from-teal-50 to-cyan-50 p-4 sm:p-6 rounded-xl border border-teal-200">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
+                      <Contact className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-teal-600" />
+                      Contact Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                      <div className="space-y-2 sm:space-y-3 md:col-span-2">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                          Address
+                        </label>
+                        <Input
+                          value={parentForm.address}
+                          onChange={(e) => setParentForm({...parentForm, address: e.target.value})}
+                          placeholder="Enter full address"
+                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 rounded-lg text-sm sm:text-base"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2 sm:space-y-3">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                          Emergency Contact
+                        </label>
+                        <Input
+                          value={parentForm.emergency_contact}
+                          onChange={(e) => setParentForm({...parentForm, emergency_contact: e.target.value})}
+                          placeholder="Emergency contact number"
+                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 rounded-lg text-sm sm:text-base"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2 sm:space-y-3">
+                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                          Status
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            id="edit_active_status"
+                            checked={parentForm.active_status}
+                            onChange={(e) => setParentForm({...parentForm, active_status: e.target.checked})}
+                            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="edit_active_status" className="text-xs sm:text-sm text-gray-700">
+                            Active parent
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6">
+                    <Button 
+                      onClick={handleUpdateParent}
+                      className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white transition-all duration-300"
+                    >
+                      Update Parent
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowEditForm(false)
+                        setEditingParent(null)
+                        resetForm()
+                      }}
+                      className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold border-2 border-gray-300 hover:bg-gray-50 transition-all duration-300"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

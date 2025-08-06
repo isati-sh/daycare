@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Database } from '@/types/database'
+import RoleGuard from '@/components/guards/roleGuard'
 
 type PlannedActivity = Database['public']['Tables']['planned_activities']['Row'] & {
   children_participating: number
@@ -181,11 +182,14 @@ export default function TeacherActivitiesPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <RoleGuard path="/dashboard/teacher/activities">
+      <div className="container mx-auto p-6">
+        
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Daily Activities</h1>
         <Button onClick={() => setShowAddForm(true)}>Add Activity</Button>
-      </div>
+        </div>
+        
 
       {/* Date Selector */}
       <div className="mb-6">
@@ -329,34 +333,36 @@ export default function TeacherActivitiesPage() {
 
       {/* Add Activity Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Add New Activity</h2>
-            <div className="space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white p-4 sm:p-6 rounded-lg w-full max-w-sm sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Add New Activity</h2>
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <Label htmlFor="name">Activity Name</Label>
+                <Label htmlFor="name" className="text-xs sm:text-sm">Activity Name</Label>
                 <Input
                   id="name"
                   value={activityForm.name}
                   onChange={(e) => setActivityForm({...activityForm, name: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-xs sm:text-sm">Description</Label>
                 <Textarea
                   id="description"
                   value={activityForm.description}
                   onChange={(e) => setActivityForm({...activityForm, description: e.target.value})}
+                  className="text-sm sm:text-base mt-1 min-h-[80px] sm:min-h-[100px]"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category" className="text-xs sm:text-sm">Category</Label>
                   <select
                     id="category"
                     value={activityForm.category}
                     onChange={(e) => setActivityForm({...activityForm, category: e.target.value as any})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-3 py-2 sm:py-3 border border-gray-300 rounded-md text-sm sm:text-base h-10 sm:h-12 mt-1"
                   >
                     <option value="art">Art</option>
                     <option value="music">Music</option>
@@ -369,40 +375,43 @@ export default function TeacherActivitiesPage() {
                   </select>
                 </div>
                 <div>
-                  <Label htmlFor="max_participants">Max Participants</Label>
+                  <Label htmlFor="max_participants" className="text-xs sm:text-sm">Max Participants</Label>
                   <Input
                     id="max_participants"
                     type="number"
                     value={activityForm.max_participants}
                     onChange={(e) => setActivityForm({...activityForm, max_participants: e.target.value})}
+                    className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="start_time">Start Time</Label>
+                  <Label htmlFor="start_time" className="text-xs sm:text-sm">Start Time</Label>
                   <Input
                     id="start_time"
                     type="time"
                     value={activityForm.start_time}
                     onChange={(e) => setActivityForm({...activityForm, start_time: e.target.value})}
+                    className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="end_time">End Time</Label>
+                  <Label htmlFor="end_time" className="text-xs sm:text-sm">End Time</Label>
                   <Input
                     id="end_time"
                     type="time"
                     value={activityForm.end_time}
                     onChange={(e) => setActivityForm({...activityForm, end_time: e.target.value})}
+                    className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                   />
                 </div>
               </div>
               <div>
-                <Label htmlFor="age_groups">Age Groups</Label>
+                <Label htmlFor="age_groups" className="text-xs sm:text-sm">Age Groups</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {['infant', 'toddler', 'preschool'].map((ageGroup) => (
-                    <label key={ageGroup} className="flex items-center">
+                    <label key={ageGroup} className="flex items-center text-xs sm:text-sm">
                       <input
                         type="checkbox"
                         checked={activityForm.age_groups.includes(ageGroup)}
@@ -427,33 +436,36 @@ export default function TeacherActivitiesPage() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="materials_needed">Materials Needed (comma-separated)</Label>
+                <Label htmlFor="materials_needed" className="text-xs sm:text-sm">Materials Needed (comma-separated)</Label>
                 <Input
                   id="materials_needed"
                   value={activityForm.materials_needed}
                   onChange={(e) => setActivityForm({...activityForm, materials_needed: e.target.value})}
                   placeholder="paint, paper, brushes"
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="learning_objectives">Learning Objectives (comma-separated)</Label>
+                <Label htmlFor="learning_objectives" className="text-xs sm:text-sm">Learning Objectives (comma-separated)</Label>
                 <Input
                   id="learning_objectives"
                   value={activityForm.learning_objectives}
                   onChange={(e) => setActivityForm({...activityForm, learning_objectives: e.target.value})}
                   placeholder="color recognition, fine motor skills"
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="teacher_notes">Teacher Notes</Label>
+                <Label htmlFor="teacher_notes" className="text-xs sm:text-sm">Teacher Notes</Label>
                 <Textarea
                   id="teacher_notes"
                   value={activityForm.teacher_notes}
                   onChange={(e) => setActivityForm({...activityForm, teacher_notes: e.target.value})}
+                  className="text-sm sm:text-base mt-1 min-h-[80px] sm:min-h-[100px]"
                 />
               </div>
               <div>
-                <label className="flex items-center">
+                <label className="flex items-center text-xs sm:text-sm">
                   <input
                     type="checkbox"
                     checked={activityForm.weather_dependent}
@@ -464,13 +476,14 @@ export default function TeacherActivitiesPage() {
                 </label>
               </div>
             </div>
-            <div className="flex gap-2 mt-6">
-              <Button onClick={handleAddActivity} className="flex-1">Add Activity</Button>
-              <Button variant="outline" onClick={() => setShowAddForm(false)} className="flex-1">Cancel</Button>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
+              <Button onClick={handleAddActivity} className="flex-1 h-10 sm:h-12 text-sm sm:text-base">Add Activity</Button>
+              <Button variant="outline" onClick={() => setShowAddForm(false)} className="flex-1 h-10 sm:h-12 text-sm sm:text-base">Cancel</Button>
             </div>
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </RoleGuard>
   )
 } 

@@ -74,6 +74,8 @@ function LoginForm() {
         .select('site_role')
         .eq('id', signInData.user.id)
         .single();
+      
+      console.log(profile, 'profile')
 
       if (profileError || !profile?.site_role) {
         toast.error('Could not fetch user role');
@@ -96,77 +98,77 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-sm sm:max-w-md w-full space-y-6 sm:space-y-8">
         <div className="text-center">
-          <div className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center mb-4 text-white font-bold text-xl">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary-500 rounded-full flex items-center justify-center mb-3 sm:mb-4 text-white font-bold text-lg sm:text-xl mx-auto">
             LL
           </div>
-          <h2 className="text-3xl font-bold">Welcome back</h2>
-          <p className="text-sm text-gray-600 mt-2">Sign in to continue</p>
+          <h2 className="text-2xl sm:text-3xl font-bold">Welcome back</h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-2">Sign in to continue</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>Use your email and password</CardDescription>
+        <Card className="w-full">
+          <CardHeader className="pb-4 sm:pb-6">
+            <CardTitle className="text-lg sm:text-xl">Sign In</CardTitle>
+            <CardDescription className="text-sm sm:text-base">Use your email and password</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
               <div>
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Label htmlFor="email" className="text-sm sm:text-base">Email</Label>
+                <div className="relative mt-1">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   <Input
                     id="email"
                     type="email"
                     placeholder="you@example.com"
-                    className="pl-10"
+                    className="pl-10 sm:pl-12 text-sm sm:text-base"
                     autoComplete="username"
                     {...register('email')}
                   />
                 </div>
                 {errors.email && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
+                  <p className="text-red-500 text-xs sm:text-sm mt-1 flex items-center">
+                    <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
                     {errors.email.message}
                   </p>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Label htmlFor="password" className="text-sm sm:text-base">Password</Label>
+                <div className="relative mt-1">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Enter your password"
-                    className="pl-10 pr-10"
+                    className="pl-10 sm:pl-12 pr-10 sm:pr-12 text-sm sm:text-base"
                     autoComplete="current-password"
                     {...register('password')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-gray-400"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
+                      <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
                     ) : (
-                      <Eye className="h-5 w-5" />
+                      <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                     )}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
+                  <p className="text-red-500 text-xs sm:text-sm mt-1 flex items-center">
+                    <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
                     {errors.password.message}
                   </p>
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full text-sm sm:text-base py-2 sm:py-3" disabled={isLoading}>
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>

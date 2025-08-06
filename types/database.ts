@@ -48,6 +48,7 @@ export interface Database {
           first_name: string
           last_name: string
           date_of_birth: string
+          gender: string
           age_group: 'infant' | 'toddler' | 'preschool'
           parent_id: string
           teacher_id: string | null
@@ -64,6 +65,7 @@ export interface Database {
           first_name: string
           last_name: string
           date_of_birth: string
+          gender: string
           age_group: 'infant' | 'toddler' | 'preschool'
           parent_id: string
           teacher_id?: string | null
@@ -80,6 +82,7 @@ export interface Database {
           first_name?: string
           last_name?: string
           date_of_birth?: string
+          gender?: string
           age_group?: 'infant' | 'toddler' | 'preschool'
           parent_id?: string
           teacher_id?: string | null
@@ -94,6 +97,7 @@ export interface Database {
       }
       daily_logs: {
         Row: {
+          child: any
           id: string
           child_id: string
           date: string
@@ -884,4 +888,4 @@ export interface Database {
       milestone_category: 'physical' | 'cognitive' | 'social' | 'language' | 'emotional'
     }
   }
-} 
+}

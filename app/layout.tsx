@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { SupabaseProvider } from '@/components/providers/supabase-provider'
 import Navigation from '@/components/layout/navigation'
+import MainContent from '@/components/layout/main-content'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/database';
@@ -82,7 +83,9 @@ export default async function RootLayout({
         >
           <SupabaseProvider serverSession={session}>
             <Navigation />
-            {children}
+            <MainContent>
+              {children}
+            </MainContent>
             <Toaster
               position="top-right"
               toastOptions={{

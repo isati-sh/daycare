@@ -67,21 +67,21 @@ export default function ContactPage() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-600" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+        <Card className="max-w-sm sm:max-w-md w-full">
+          <CardContent className="p-6 sm:p-8 text-center">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">
               Thank You!
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
               Your message has been sent successfully. We'll get back to you within 24 hours.
             </p>
             <Button 
               onClick={() => setIsSubmitted(false)}
-              className="w-full"
+              className="w-full text-sm sm:text-base py-2 sm:py-3"
             >
               Send Another Message
             </Button>
@@ -94,88 +94,92 @@ export default function ContactPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-600 to-secondary-600 text-white py-20">
+      <section className="bg-gradient-to-br from-primary-600 to-secondary-600 text-white py-12 sm:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight">
             Contact Us
           </h1>
-          <p className="text-xl md:text-2xl max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl md:text-2xl max-w-2xl sm:max-w-3xl mx-auto px-4">
             Get in touch with us to learn more about our programs or schedule a tour
           </p>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid lg:grid-cols-2 gap-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
+        <div className="grid lg:grid-cols-2 gap-8 sm:gap-12">
           {/* Contact Form */}
           <div>
             <Card>
-              <CardHeader>
-                <CardTitle>Send us a Message</CardTitle>
-                <CardDescription>
+              <CardHeader className="pb-4 sm:pb-6">
+                <CardTitle className="text-lg sm:text-xl">Send us a Message</CardTitle>
+                <CardDescription className="text-sm sm:text-base">
                   Fill out the form below and we'll get back to you as soon as possible
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
                   <div>
-                    <Label htmlFor="name">Full Name *</Label>
+                    <Label htmlFor="name" className="text-sm sm:text-base">Full Name *</Label>
                     <Input
                       id="name"
                       placeholder="Enter your full name"
+                      className="text-sm sm:text-base"
                       {...register('name')}
                     />
                     {errors.name && (
-                      <div className="flex items-center mt-1 text-sm text-red-600">
-                        <AlertCircle className="h-4 w-4 mr-1" />
+                      <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                        <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                         {errors.name.message}
                       </div>
                     )}
                   </div>
 
                   <div>
-                    <Label htmlFor="email">Email *</Label>
+                    <Label htmlFor="email" className="text-sm sm:text-base">Email *</Label>
                     <Input
                       id="email"
                       type="email"
                       placeholder="Enter your email address"
+                      className="text-sm sm:text-base"
                       {...register('email')}
                     />
                     {errors.email && (
-                      <div className="flex items-center mt-1 text-sm text-red-600">
-                        <AlertCircle className="h-4 w-4 mr-1" />
+                      <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                        <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                         {errors.email.message}
                       </div>
                     )}
                   </div>
 
                   <div>
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="phone" className="text-sm sm:text-base">Phone Number</Label>
                     <Input
                       id="phone"
                       type="tel"
                       placeholder="Enter your phone number"
+                      className="text-sm sm:text-base"
                       {...register('phone')}
                     />
                     {errors.phone && (
-                      <div className="flex items-center mt-1 text-sm text-red-600">
-                        <AlertCircle className="h-4 w-4 mr-1" />
+                      <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                        <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                         {errors.phone.message}
                       </div>
                     )}
                   </div>
 
                   <div>
-                    <Label htmlFor="message">Message *</Label>
+                    <Label htmlFor="message" className="text-sm sm:text-base">Message *</Label>
                     <Textarea
                       id="message"
                       placeholder="Tell us about your child and what you're looking for..."
                       rows={5}
+                      className="text-sm sm:text-base"
                       {...register('message')}
                     />
                     {errors.message && (
-                      <div className="flex items-center mt-1 text-sm text-red-600">
-                        <AlertCircle className="h-4 w-4 mr-1" />
+                      <div className="flex items-center mt-1 text-xs sm:text-sm text-red-600">
+                        <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                         {errors.message.message}
                       </div>
                     )}
@@ -183,17 +187,17 @@ export default function ContactPage() {
 
                   <Button
                     type="submit"
-                    className="w-full"
+                    className="w-full text-sm sm:text-base py-2 sm:py-3"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
                         Sending...
                       </>
                     ) : (
                       <>
-                        <Send className="h-4 w-4 mr-2" />
+                        <Send className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                         Send Message
                       </>
                     )}
@@ -204,92 +208,92 @@ export default function ContactPage() {
           </div>
 
           {/* Contact Information */}
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">
                 Get in Touch
               </h2>
-              <p className="text-lg text-gray-600 mb-8">
+              <p className="text-sm sm:text-base lg:text-lg text-gray-600 mb-6 sm:mb-8">
                 We'd love to hear from you! Whether you have questions about our programs, 
                 want to schedule a tour, or just want to learn more about Little Learners, 
                 we're here to help.
               </p>
             </div>
 
-            <div className="space-y-6">
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Phone className="h-6 w-6 text-primary-600" />
+            <div className="space-y-4 sm:space-y-6">
+              <div className="flex items-start space-x-3 sm:space-x-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Phone className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Phone</h3>
-                  <p className="text-gray-600">(555) 123-4567</p>
-                  <p className="text-sm text-gray-500">Monday - Friday, 6:30 AM - 6:00 PM</p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Mail className="h-6 w-6 text-primary-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Email</h3>
-                  <p className="text-gray-600">info@littlelearners.com</p>
-                  <p className="text-sm text-gray-500">We typically respond within 24 hours</p>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Phone</h3>
+                  <p className="text-sm sm:text-base text-gray-600">(555) 123-4567</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Monday - Friday, 6:30 AM - 6:00 PM</p>
                 </div>
               </div>
 
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <MapPin className="h-6 w-6 text-primary-600" />
+              <div className="flex items-start space-x-3 sm:space-x-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Mail className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Address</h3>
-                  <p className="text-gray-600">
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Email</h3>
+                  <p className="text-sm sm:text-base text-gray-600">info@littlelearners.com</p>
+                  <p className="text-xs sm:text-sm text-gray-500">We typically respond within 24 hours</p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3 sm:space-x-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Address</h3>
+                  <p className="text-sm sm:text-base text-gray-600">
                     123 Learning Lane<br />
                     City, ST 12345
                   </p>
-                  <p className="text-sm text-gray-500">Located in a safe, family-friendly neighborhood</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Located in a safe, family-friendly neighborhood</p>
                 </div>
               </div>
 
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Clock className="h-6 w-6 text-primary-600" />
+              <div className="flex items-start space-x-3 sm:space-x-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Hours</h3>
-                  <p className="text-gray-600">
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Hours</h3>
+                  <p className="text-sm sm:text-base text-gray-600">
                     Monday - Friday: 6:30 AM - 6:00 PM<br />
                     Saturday: 8:00 AM - 2:00 PM<br />
                     Sunday: Closed
                   </p>
-                  <p className="text-sm text-gray-500">Extended hours available for working parents</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Extended hours available for working parents</p>
                 </div>
               </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+            <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl p-4 sm:p-6">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
                 Quick Actions
               </h3>
-              <div className="space-y-3">
-                <Button asChild variant="outline" className="w-full justify-start">
+              <div className="space-y-2 sm:space-y-3">
+                <Button asChild variant="outline" className="w-full justify-start text-sm sm:text-base py-2 sm:py-3">
                   <a href="tel:+15551234567">
-                    <Phone className="h-4 w-4 mr-2" />
+                    <Phone className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                     Call Now
                   </a>
                 </Button>
-                <Button asChild variant="outline" className="w-full justify-start">
+                <Button asChild variant="outline" className="w-full justify-start text-sm sm:text-base py-2 sm:py-3">
                   <a href="mailto:info@littlelearners.com">
-                    <Mail className="h-4 w-4 mr-2" />
+                    <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                     Send Email
                   </a>
                 </Button>
-                <Button asChild className="w-full justify-start">
+                <Button asChild className="w-full justify-start text-sm sm:text-base py-2 sm:py-3">
                   <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer">
-                    <MapPin className="h-4 w-4 mr-2" />
+                    <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                     Get Directions
                   </a>
                 </Button>

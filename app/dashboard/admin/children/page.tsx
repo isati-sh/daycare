@@ -429,42 +429,45 @@ export default function AdminChildrenPage() {
 
       {/* Add Child Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Add New Child</h2>
-            <div className="space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white p-4 sm:p-6 rounded-lg w-full max-w-sm sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Add New Child</h2>
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <Label htmlFor="first_name">First Name</Label>
+                <Label htmlFor="first_name" className="text-xs sm:text-sm">First Name</Label>
                 <Input
                   id="first_name"
                   value={childForm.first_name}
                   onChange={(e) => setChildForm({...childForm, first_name: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="last_name">Last Name</Label>
+                <Label htmlFor="last_name" className="text-xs sm:text-sm">Last Name</Label>
                 <Input
                   id="last_name"
                   value={childForm.last_name}
                   onChange={(e) => setChildForm({...childForm, last_name: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="date_of_birth">Date of Birth</Label>
+                <Label htmlFor="date_of_birth" className="text-xs sm:text-sm">Date of Birth</Label>
                 <Input
                   id="date_of_birth"
                   type="date"
                   value={childForm.date_of_birth}
                   onChange={(e) => setChildForm({...childForm, date_of_birth: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="age_group">Age Group</Label>
+                <Label htmlFor="age_group" className="text-xs sm:text-sm">Age Group</Label>
                 <select
                   id="age_group"
                   value={childForm.age_group}
                   onChange={(e) => setChildForm({...childForm, age_group: e.target.value as 'infant' | 'toddler' | 'preschool'})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 sm:py-3 border border-gray-300 rounded-md text-sm sm:text-base h-10 sm:h-12 mt-1"
                 >
                   <option value="infant">Infant</option>
                   <option value="toddler">Toddler</option>
@@ -472,62 +475,68 @@ export default function AdminChildrenPage() {
                 </select>
               </div>
               <div>
-                <Label htmlFor="parent_name">Parent Name</Label>
+                <Label htmlFor="parent_name" className="text-xs sm:text-sm">Parent Name</Label>
                 <Input
                   id="parent_name"
                   value={childForm.parent_name}
                   onChange={(e) => setChildForm({...childForm, parent_name: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="parent_email">Parent Email</Label>
+                <Label htmlFor="parent_email" className="text-xs sm:text-sm">Parent Email</Label>
                 <Input
                   id="parent_email"
                   type="email"
                   value={childForm.parent_email}
                   onChange={(e) => setChildForm({...childForm, parent_email: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="teacher_name">Teacher Name</Label>
+                <Label htmlFor="teacher_name" className="text-xs sm:text-sm">Teacher Name</Label>
                 <Input
                   id="teacher_name"
                   value={childForm.teacher_name}
                   onChange={(e) => setChildForm({...childForm, teacher_name: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="allergies">Allergies (comma-separated)</Label>
+                <Label htmlFor="allergies" className="text-xs sm:text-sm">Allergies (comma-separated)</Label>
                 <Input
                   id="allergies"
                   value={childForm.allergies}
                   onChange={(e) => setChildForm({...childForm, allergies: e.target.value})}
                   placeholder="peanuts, dairy, eggs"
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="medical_notes">Medical Notes</Label>
+                <Label htmlFor="medical_notes" className="text-xs sm:text-sm">Medical Notes</Label>
                 <Textarea
                   id="medical_notes"
                   value={childForm.medical_notes}
                   onChange={(e) => setChildForm({...childForm, medical_notes: e.target.value})}
+                  className="text-sm sm:text-base mt-1 min-h-[80px] sm:min-h-[100px]"
                 />
               </div>
               <div>
-                <Label htmlFor="emergency_contact">Emergency Contact</Label>
+                <Label htmlFor="emergency_contact" className="text-xs sm:text-sm">Emergency Contact</Label>
                 <Input
                   id="emergency_contact"
                   value={childForm.emergency_contact}
                   onChange={(e) => setChildForm({...childForm, emergency_contact: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status" className="text-xs sm:text-sm">Status</Label>
                 <select
                   id="status"
                   value={childForm.status}
                   onChange={(e) => setChildForm({...childForm, status: e.target.value as 'active' | 'inactive' | 'waitlist'})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 sm:py-3 border border-gray-300 rounded-md text-sm sm:text-base h-10 sm:h-12 mt-1"
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -535,9 +544,9 @@ export default function AdminChildrenPage() {
                 </select>
               </div>
             </div>
-            <div className="flex gap-2 mt-6">
-              <Button onClick={handleAddChild} className="flex-1">Add Child</Button>
-              <Button variant="outline" onClick={() => setShowAddForm(false)} className="flex-1">Cancel</Button>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
+              <Button onClick={handleAddChild} className="flex-1 h-10 sm:h-12 text-sm sm:text-base">Add Child</Button>
+              <Button variant="outline" onClick={() => setShowAddForm(false)} className="flex-1 h-10 sm:h-12 text-sm sm:text-base">Cancel</Button>
             </div>
           </div>
         </div>
@@ -545,42 +554,45 @@ export default function AdminChildrenPage() {
 
       {/* Edit Child Modal */}
       {showEditForm && editingChild && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Edit Child</h2>
-            <div className="space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white p-4 sm:p-6 rounded-lg w-full max-w-sm sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Edit Child</h2>
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <Label htmlFor="edit_first_name">First Name</Label>
+                <Label htmlFor="edit_first_name" className="text-xs sm:text-sm">First Name</Label>
                 <Input
                   id="edit_first_name"
                   value={childForm.first_name}
                   onChange={(e) => setChildForm({...childForm, first_name: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="edit_last_name">Last Name</Label>
+                <Label htmlFor="edit_last_name" className="text-xs sm:text-sm">Last Name</Label>
                 <Input
                   id="edit_last_name"
                   value={childForm.last_name}
                   onChange={(e) => setChildForm({...childForm, last_name: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="edit_date_of_birth">Date of Birth</Label>
+                <Label htmlFor="edit_date_of_birth" className="text-xs sm:text-sm">Date of Birth</Label>
                 <Input
                   id="edit_date_of_birth"
                   type="date"
                   value={childForm.date_of_birth}
                   onChange={(e) => setChildForm({...childForm, date_of_birth: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="edit_age_group">Age Group</Label>
+                <Label htmlFor="edit_age_group" className="text-xs sm:text-sm">Age Group</Label>
                 <select
                   id="edit_age_group"
                   value={childForm.age_group}
                   onChange={(e) => setChildForm({...childForm, age_group: e.target.value as 'infant' | 'toddler' | 'preschool'})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 sm:py-3 border border-gray-300 rounded-md text-sm sm:text-base h-10 sm:h-12 mt-1"
                 >
                   <option value="infant">Infant</option>
                   <option value="toddler">Toddler</option>
@@ -588,45 +600,49 @@ export default function AdminChildrenPage() {
                 </select>
               </div>
               <div>
-                <Label htmlFor="edit_teacher_name">Teacher Name</Label>
+                <Label htmlFor="edit_teacher_name" className="text-xs sm:text-sm">Teacher Name</Label>
                 <Input
                   id="edit_teacher_name"
                   value={childForm.teacher_name}
                   onChange={(e) => setChildForm({...childForm, teacher_name: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="edit_allergies">Allergies (comma-separated)</Label>
+                <Label htmlFor="edit_allergies" className="text-xs sm:text-sm">Allergies (comma-separated)</Label>
                 <Input
                   id="edit_allergies"
                   value={childForm.allergies}
                   onChange={(e) => setChildForm({...childForm, allergies: e.target.value})}
                   placeholder="peanuts, dairy, eggs"
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="edit_medical_notes">Medical Notes</Label>
+                <Label htmlFor="edit_medical_notes" className="text-xs sm:text-sm">Medical Notes</Label>
                 <Textarea
                   id="edit_medical_notes"
                   value={childForm.medical_notes}
                   onChange={(e) => setChildForm({...childForm, medical_notes: e.target.value})}
+                  className="text-sm sm:text-base mt-1 min-h-[80px] sm:min-h-[100px]"
                 />
               </div>
               <div>
-                <Label htmlFor="edit_emergency_contact">Emergency Contact</Label>
+                <Label htmlFor="edit_emergency_contact" className="text-xs sm:text-sm">Emergency Contact</Label>
                 <Input
                   id="edit_emergency_contact"
                   value={childForm.emergency_contact}
                   onChange={(e) => setChildForm({...childForm, emergency_contact: e.target.value})}
+                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="edit_status">Status</Label>
+                <Label htmlFor="edit_status" className="text-xs sm:text-sm">Status</Label>
                 <select
                   id="edit_status"
                   value={childForm.status}
                   onChange={(e) => setChildForm({...childForm, status: e.target.value as 'active' | 'inactive' | 'waitlist'})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 sm:py-3 border border-gray-300 rounded-md text-sm sm:text-base h-10 sm:h-12 mt-1"
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -634,9 +650,9 @@ export default function AdminChildrenPage() {
                 </select>
               </div>
             </div>
-            <div className="flex gap-2 mt-6">
-              <Button onClick={handleEditChild} className="flex-1">Update Child</Button>
-              <Button variant="outline" onClick={() => setShowEditForm(false)} className="flex-1">Cancel</Button>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
+              <Button onClick={handleEditChild} className="flex-1 h-10 sm:h-12 text-sm sm:text-base">Update Child</Button>
+              <Button variant="outline" onClick={() => setShowEditForm(false)} className="flex-1 h-10 sm:h-12 text-sm sm:text-base">Cancel</Button>
             </div>
           </div>
         </div>

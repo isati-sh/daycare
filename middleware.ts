@@ -37,7 +37,13 @@ export async function middleware(req: NextRequest) {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    
+
+    // Redirect to dashboard if already logged in and on root or login/register
+    if (session && (pathname === '/' || pathname === '/login' || pathname === '/register')) {
+      // Set a header to hint client-side redirect if needed
+      res.headers.set('x-redirect-dashboard', 'true');
+      return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
 
     if (session) {
       const { error: cookieError } = await supabase.auth.setSession({

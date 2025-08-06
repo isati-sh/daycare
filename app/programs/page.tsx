@@ -118,73 +118,73 @@ export default function ProgramsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-600 to-secondary-600 text-white py-20">
+      <section className="bg-gradient-to-br from-primary-600 to-secondary-600 text-white py-12 sm:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight">
             Our Programs
           </h1>
-          <p className="text-xl md:text-2xl max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl md:text-2xl max-w-2xl sm:max-w-3xl mx-auto px-4">
             Age-appropriate programs designed to support your child's development at every stage
           </p>
         </div>
       </section>
 
       {/* Programs Overview */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-16 lg:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
               Choose the Right Program
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl sm:max-w-3xl mx-auto px-4">
               Each program is carefully designed to meet the developmental needs of children at different ages
             </p>
           </div>
           
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
             {programs.map((program) => (
               <Card key={program.id} className="hover:shadow-xl transition-shadow">
-                <CardHeader className="text-center">
-                  <div className={`w-20 h-20 bg-${program.color}-100 rounded-full flex items-center justify-center mx-auto mb-4`}>
-                    <program.icon className={`h-10 w-10 text-${program.color}-600`} />
+                <CardHeader className="text-center pb-4 sm:pb-6">
+                  <div className={`w-16 h-16 sm:w-20 sm:h-20 bg-${program.color}-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4`}>
+                    <program.icon className={`h-8 w-8 sm:h-10 sm:w-10 text-${program.color}-600`} />
                   </div>
-                  <CardTitle className="text-2xl">{program.title}</CardTitle>
+                  <CardTitle className="text-xl sm:text-2xl">{program.title}</CardTitle>
                   <CardDescription>
-                    <Badge variant="secondary" className="mb-2">{program.ageRange}</Badge>
-                    <p className="mt-4 text-gray-600">{program.description}</p>
+                    <Badge variant="secondary" className="mb-2 text-xs sm:text-sm">{program.ageRange}</Badge>
+                    <p className="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600">{program.description}</p>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between text-sm">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
                       <span className="text-gray-600">Schedule:</span>
                       <span className="font-medium">{program.schedule}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
                       <span className="text-gray-600">Ratio:</span>
                       <span className="font-medium">{program.ratio}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
                       <span className="text-gray-600">Monthly Rate:</span>
                       <span className="font-medium">{program.price}</span>
                     </div>
                     
-                    <div className="pt-4">
-                      <h4 className="font-semibold mb-3">Program Features:</h4>
-                      <ul className="space-y-2">
+                    <div className="pt-3 sm:pt-4">
+                      <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Program Features:</h4>
+                      <ul className="space-y-1 sm:space-y-2">
                         {program.features.map((feature, index) => (
-                          <li key={index} className="flex items-center text-sm">
-                            <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                          <li key={index} className="flex items-center text-xs sm:text-sm">
+                            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 mr-2 flex-shrink-0" />
                             {feature}
                           </li>
                         ))}
                       </ul>
                     </div>
                     
-                    <Button asChild className="w-full mt-6">
+                    <Button asChild className="w-full mt-4 sm:mt-6 text-sm sm:text-base py-2 sm:py-3">
                       <Link href="/contact">
                         Learn More
-                        <ArrowRight className="ml-2 h-4 w-4" />
+                        <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                       </Link>
                     </Button>
                   </div>
@@ -196,27 +196,27 @@ export default function ProgramsPage() {
       </section>
 
       {/* Curriculum Areas */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-12 sm:py-16 lg:py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
               Our Curriculum
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl sm:max-w-3xl mx-auto px-4">
               A comprehensive approach to early childhood education that addresses all areas of development
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {curriculumAreas.map((area, index) => (
               <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle className="text-xl">{area.title}</CardTitle>
-                  <CardDescription>{area.description}</CardDescription>
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-lg sm:text-xl">{area.title}</CardTitle>
+                  <CardDescription className="text-sm sm:text-base">{area.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <h4 className="font-semibold mb-3">Sample Activities:</h4>
-                  <div className="flex flex-wrap gap-2">
+                  <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Sample Activities:</h4>
+                  <div className="flex flex-wrap gap-1 sm:gap-2">
                     {area.activities.map((activity, activityIndex) => (
                       <Badge key={activityIndex} variant="outline" className="text-xs">
                         {activity}
@@ -231,48 +231,48 @@ export default function ProgramsPage() {
       </section>
 
       {/* Daily Schedule */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-16 lg:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
               Daily Schedule
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl sm:max-w-3xl mx-auto px-4">
               A typical day at Little Learners includes a balance of structured learning and free play
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Clock className="h-5 w-5 mr-2" />
+              <CardHeader className="pb-4 sm:pb-6">
+                <CardTitle className="flex items-center text-lg sm:text-xl">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                   Morning Schedule
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">6:30 - 8:00 AM</span>
                     <span className="text-gray-600">Arrival & Free Play</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">8:00 - 8:30 AM</span>
                     <span className="text-gray-600">Breakfast</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">8:30 - 9:00 AM</span>
                     <span className="text-gray-600">Circle Time</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">9:00 - 10:30 AM</span>
                     <span className="text-gray-600">Structured Activities</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">10:30 - 11:00 AM</span>
                     <span className="text-gray-600">Snack Time</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">11:00 - 12:00 PM</span>
                     <span className="text-gray-600">Outdoor Play</span>
                   </div>
@@ -281,35 +281,35 @@ export default function ProgramsPage() {
             </Card>
             
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Clock className="h-5 w-5 mr-2" />
+              <CardHeader className="pb-4 sm:pb-6">
+                <CardTitle className="flex items-center text-lg sm:text-xl">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                   Afternoon Schedule
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">12:00 - 12:30 PM</span>
                     <span className="text-gray-600">Lunch</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">12:30 - 2:30 PM</span>
                     <span className="text-gray-600">Nap Time</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">2:30 - 3:00 PM</span>
                     <span className="text-gray-600">Snack Time</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">3:00 - 4:00 PM</span>
                     <span className="text-gray-600">Creative Activities</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">4:00 - 5:00 PM</span>
                     <span className="text-gray-600">Outdoor Play</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="font-medium">5:00 - 6:00 PM</span>
                     <span className="text-gray-600">Free Play & Pickup</span>
                   </div>
@@ -321,21 +321,21 @@ export default function ProgramsPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-primary-600 text-white">
+      <section className="py-12 sm:py-16 lg:py-20 bg-primary-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4">
             Ready to Enroll?
           </h2>
-          <p className="text-xl text-primary-100 mb-8 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-primary-100 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
             Schedule a tour to see our programs in action and meet our dedicated teachers.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg" variant="secondary">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
+            <Button asChild size="lg" variant="secondary" className="text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 w-full sm:w-auto">
               <Link href="/contact">
                 Schedule a Tour
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary-600">
+            <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary-600 text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 w-full sm:w-auto">
               <Link href="/login">
                 Parent Portal
               </Link>
