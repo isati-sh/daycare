@@ -38,11 +38,13 @@ interface Teacher {
 export default function AdminTeachersPage() {
   const { user, client } = useSupabase()
   const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [unassignedUsers, setUnassignedUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState('')
   const [teacherForm, setTeacherForm] = useState({
     email: '',
     full_name: '',
@@ -115,7 +117,30 @@ export default function AdminTeachersPage() {
     }
   }
 
+  const fetchUnassignedUsers = async () => {
+    if (!client) return
+
+    try {
+      const { data, error } = await client
+        .from('profiles')
+        .select('*')
+        .is('site_role', null)
+        .eq('active_status', true)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching unassigned users:', error)
+        return
+      }
+
+      setUnassignedUsers(data || [])
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
   const resetForm = () => {
+    setSelectedUserId('')
     setTeacherForm({
       email: '',
       full_name: '',
@@ -127,42 +152,38 @@ export default function AdminTeachersPage() {
   }
 
   const handleAddTeacher = async () => {
-    if (!client) return
+    if (!client || !selectedUserId) {
+      toast.error('Please select a user to assign as teacher')
+      return
+    }
 
     try {
-      // Validate required fields
-      if (!teacherForm.email || !teacherForm.full_name) {
-        toast.error('Email and full name are required')
-        return
-      }
-
-      // Create new teacher profile
-      const { data, error } = await client
+      // Update the selected user's profile to assign teacher role
+      const { error } = await client
         .from('profiles')
-        .insert({
-          email: teacherForm.email,
-          full_name: teacherForm.full_name,
+        .update({ 
+          site_role: 'teacher',
           phone: teacherForm.phone || null,
           address: teacherForm.address || null,
-          emergency_contact: teacherForm.emergency_contact || null,
-          active_status: teacherForm.active_status,
-          site_role: 'teacher'
+          emergency_contact: teacherForm.emergency_contact || null
         })
-        .select()
+        .eq('id', selectedUserId)
 
       if (error) {
-        console.error('Error adding teacher:', error)
-        toast.error('Failed to add teacher')
+        console.error('Error assigning teacher role:', error)
+        toast.error('Failed to assign teacher role')
         return
       }
 
-      toast.success('Teacher added successfully')
+      toast.success('Teacher role assigned successfully')
       setShowAddForm(false)
+      setSelectedUserId('')
       resetForm()
       fetchTeachers() // Refresh the list
+      fetchUnassignedUsers() // Refresh unassigned users
     } catch (error) {
-      console.error('Error adding teacher:', error)
-      toast.error('Failed to add teacher')
+      console.error('Error assigning teacher role:', error)
+      toast.error('Failed to assign teacher role')
     }
   }
 
@@ -323,7 +344,10 @@ export default function AdminTeachersPage() {
               />
             </div>
             <Button 
-              onClick={() => setShowAddForm(true)}
+              onClick={() => {
+                setShowAddForm(true)
+                fetchUnassignedUsers()
+              }}
               className="h-10 sm:h-12 px-4 sm:px-6 text-sm sm:text-base bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
             >
               <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
@@ -455,109 +479,113 @@ export default function AdminTeachersPage() {
                 <CardContent className="p-4 sm:p-6 md:p-8">
                   <div className="space-y-6 sm:space-y-8">
                     {/* Personal Information Section */}
+                    {/* User Selection Section */}
                     <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-4 sm:p-6 rounded-xl border border-emerald-200">
                       <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
                         <Users className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-emerald-600" />
-                        Personal Information
+                        Select User to Assign as Teacher
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                        <div className="space-y-2 sm:space-y-3 md:col-span-2">
-                          <label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center">
-                            <span className="text-red-500 mr-1">*</span>
-                            Full Name
-                          </label>
-                          <Input
-                            value={teacherForm.full_name}
-                            onChange={(e) => setTeacherForm({...teacherForm, full_name: e.target.value})}
-                            placeholder="Enter teacher's full name"
-                            className="h-10 sm:h-12 border-2 border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 rounded-lg text-sm sm:text-base"
-                          />
+                      
+                      {unassignedUsers.length === 0 ? (
+                        <div className="text-center py-8">
+                          <UserCheck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600">No unassigned users available</p>
+                          <p className="text-sm text-gray-400">All users already have roles assigned</p>
                         </div>
-                        
-                        <div className="space-y-2 sm:space-y-3">
-                          <label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center">
-                            <span className="text-red-500 mr-1">*</span>
-                            Email Address
-                          </label>
-                          <Input
-                            value={teacherForm.email}
-                            onChange={(e) => setTeacherForm({...teacherForm, email: e.target.value})}
-                            placeholder="teacher@daycare.com"
-                            className="h-10 sm:h-12 border-2 border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 rounded-lg text-sm sm:text-base"
-                          />
+                      ) : (
+                        <div className="space-y-3">
+                          {unassignedUsers.map((user) => (
+                            <div
+                              key={user.id}
+                              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                                selectedUserId === user.id
+                                  ? 'border-emerald-500 bg-emerald-50'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                              onClick={() => setSelectedUserId(user.id)}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className="flex-shrink-0">
+                                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center">
+                                    <Users className="h-5 w-5 text-white" />
+                                  </div>
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-gray-900">{user.full_name}</h4>
+                                  <p className="text-sm text-gray-600">{user.email}</p>
+                                  {user.phone && (
+                                    <p className="text-xs text-gray-500">{user.phone}</p>
+                                  )}
+                                </div>
+                                {selectedUserId === user.id && (
+                                  <div className="flex-shrink-0">
+                                    <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                                      <UserCheck className="h-4 w-4 text-white" />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        
-                        <div className="space-y-2 sm:space-y-3">
-                          <label className="text-xs sm:text-sm font-semibold text-gray-700">
-                            Phone Number
-                          </label>
-                          <Input
-                            value={teacherForm.phone}
-                            onChange={(e) => setTeacherForm({...teacherForm, phone: e.target.value})}
-                            placeholder="+1 (555) 123-4567"
-                            className="h-10 sm:h-12 border-2 border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 rounded-lg text-sm sm:text-base"
-                          />
-                        </div>
-                      </div>
+                      )}
                     </div>
 
-                    {/* Contact Information Section */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-xl border border-blue-200">
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
-                        <Contact className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-600" />
-                        Contact Information
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                        <div className="space-y-2 sm:space-y-3 md:col-span-2">
-                          <label className="text-xs sm:text-sm font-semibold text-gray-700">
-                            Address
-                          </label>
-                          <Input
-                            value={teacherForm.address}
-                            onChange={(e) => setTeacherForm({...teacherForm, address: e.target.value})}
-                            placeholder="Enter full address"
-                            className="h-10 sm:h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-sm sm:text-base"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2 sm:space-y-3">
-                          <label className="text-xs sm:text-sm font-semibold text-gray-700">
-                            Emergency Contact
-                          </label>
-                          <Input
-                            value={teacherForm.emergency_contact}
-                            onChange={(e) => setTeacherForm({...teacherForm, emergency_contact: e.target.value})}
-                            placeholder="Emergency contact number"
-                            className="h-10 sm:h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-sm sm:text-base"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2 sm:space-y-3">
-                          <label className="text-xs sm:text-sm font-semibold text-gray-700">
-                            Status
-                          </label>
-                          <div className="flex items-center space-x-3">
-                            <input
-                              type="checkbox"
-                              id="active_status"
-                              checked={teacherForm.active_status}
-                              onChange={(e) => setTeacherForm({...teacherForm, active_status: e.target.checked})}
-                              className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
-                            />
-                            <label htmlFor="active_status" className="text-xs sm:text-sm text-gray-700">
-                              Active teacher
+                    {/* Additional Contact Information (Optional) */}
+                    {selectedUserId && (
+                      <div className="bg-gradient-to-r from-teal-50 to-cyan-50 p-4 sm:p-6 rounded-xl border border-teal-200">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
+                          <Contact className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-teal-600" />
+                          Additional Contact Information (Optional)
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                          <div className="space-y-2 sm:space-y-3">
+                            <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                              Phone Number
                             </label>
+                            <Input
+                              value={teacherForm.phone}
+                              onChange={(e) => setTeacherForm({...teacherForm, phone: e.target.value})}
+                              placeholder="+1 (555) 123-4567"
+                              className="h-10 sm:h-12 border-2 border-gray-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 rounded-lg text-sm sm:text-base"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2 sm:space-y-3">
+                            <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                              Emergency Contact
+                            </label>
+                            <Input
+                              value={teacherForm.emergency_contact}
+                              onChange={(e) => setTeacherForm({...teacherForm, emergency_contact: e.target.value})}
+                              placeholder="Emergency contact number"
+                              className="h-10 sm:h-12 border-2 border-gray-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 rounded-lg text-sm sm:text-base"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2 sm:space-y-3 md:col-span-2">
+                            <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                              Address
+                            </label>
+                            <Input
+                              value={teacherForm.address}
+                              onChange={(e) => setTeacherForm({...teacherForm, address: e.target.value})}
+                              placeholder="Enter full address"
+                              className="h-10 sm:h-12 border-2 border-gray-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 rounded-lg text-sm sm:text-base"
+                            />
                           </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6">
                       <Button 
                         onClick={handleAddTeacher}
-                        className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white transition-all duration-300"
+                        disabled={!selectedUserId}
+                        className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Add Teacher
+                        <Plus className="h-5 w-5 mr-2" />
+                        Assign Teacher Role
                       </Button>
                       <Button 
                         variant="outline" 

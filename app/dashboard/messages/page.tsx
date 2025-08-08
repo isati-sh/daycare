@@ -15,10 +15,14 @@ import {
   Clock,
   Plus,
   Inbox,
-  Archive
+  Archive,
+  Shield,
+  Users,
+  Baby
 } from 'lucide-react'
 import { formatDate, formatTime } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import RoleGuard from '@/components/guards/roleGuard'
 
 interface Message {
   id: string
@@ -30,8 +34,8 @@ interface Message {
   created_at: string
   sender_name?: string
   recipient_name?: string
-  sender?: { full_name: string }
-  recipient?: { full_name: string }
+  sender?: { full_name: string; site_role: string }
+  recipient?: { full_name: string; site_role: string }
 }
 
 interface Profile {
@@ -41,7 +45,7 @@ interface Profile {
 }
 
 export default function MessagesPage() {
-  const { user, client: supabase } = useSupabase()
+  const { user, client: supabase, role } = useSupabase()
   const [messages, setMessages] = useState<Message[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,8 +72,8 @@ export default function MessagesPage() {
         .from('messages')
         .select(`
           *,
-          sender:profiles!messages_sender_id_fkey(full_name),
-          recipient:profiles!messages_recipient_id_fkey(full_name)
+          sender:profiles!messages_sender_id_fkey(full_name, site_role),
+          recipient:profiles!messages_recipient_id_fkey(full_name, site_role)
         `)
         .or(`sender_id.eq.${user?.id},recipient_id.eq.${user?.id}`)
         .order('created_at', { ascending: false })
@@ -150,32 +154,58 @@ export default function MessagesPage() {
     }
   }
 
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <div className="text-center">
-  //         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-  //         <p className="mt-4 text-gray-600">Loading messages...</p>
-  //       </div>
-  //     </div>
-  //   )
-  // }
+  const getRoleIcon = (roleType: string) => {
+    switch (roleType) {
+      case 'admin': return <Shield className="h-4 w-4 text-blue-600" />
+      case 'teacher': return <Users className="h-4 w-4 text-green-600" />
+      case 'parent': return <Baby className="h-4 w-4 text-purple-600" />
+      default: return <User className="h-4 w-4 text-gray-600" />
+    }
+  }
+
+  const getRoleBadgeColor = (roleType: string) => {
+    switch (roleType) {
+      case 'admin': return 'bg-blue-100 text-blue-700 border-blue-200'
+      case 'teacher': return 'bg-green-100 text-green-700 border-green-200'
+      case 'parent': return 'bg-purple-100 text-purple-700 border-purple-200'
+      default: return 'bg-gray-100 text-gray-700 border-gray-200'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading messages...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <RoleGuard path="/dashboard/messages">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <MessageSquare className="h-8 w-8 mr-3 text-blue-600" />
+            Messages
+          </h1>
           <p className="text-gray-600 mt-2">
-            Communicate with teachers and staff
+            Communicate with daycare staff and parents
           </p>
+          <Badge className={`mt-2 ${getRoleBadgeColor(role || '')}`}>
+            {getRoleIcon(role || '')}
+            <span className="ml-1 capitalize">{role}</span>
+          </Badge>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Message List */}
           <div className="lg:col-span-1">
-            <Card>
+            <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -208,9 +238,9 @@ export default function MessagesPage() {
                         key={message.id}
                         className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                           selectedMessage?.id === message.id
-                            ? 'border-primary-500 bg-primary-50'
+                            ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300'
-                        } ${!message.read ? 'bg-blue-50 border-blue-200' : ''}`}
+                        } ${!message.read && message.recipient_id === user?.id ? 'bg-blue-50 border-blue-200' : ''}`}
                         onClick={() => {
                           setSelectedMessage(message)
                           if (!message.read && message.recipient_id === user?.id) {
@@ -223,16 +253,26 @@ export default function MessagesPage() {
                             {message.subject}
                           </h4>
                           {!message.read && message.recipient_id === user?.id && (
-                            <Badge variant="outline" className="text-xs">New</Badge>
+                            <Badge variant="default" className="text-xs bg-red-500 hover:bg-red-600">New</Badge>
                           )}
                         </div>
                         <div className="flex items-center justify-between text-xs text-gray-500">
-                          <span>
-                            {message.sender_id === user?.id ? 'To: ' : 'From: '}
-                            {message.sender_id === user?.id 
-                              ? message.recipient_name 
-                              : message.sender_name}
-                          </span>
+                          <div className="flex items-center space-x-1">
+                            <span>
+                              {message.sender_id === user?.id ? 'To: ' : 'From: '}
+                            </span>
+                            {message.sender_id === user?.id ? (
+                              <>
+                                {getRoleIcon(message.recipient?.site_role || '')}
+                                <span>{message.recipient_name}</span>
+                              </>
+                            ) : (
+                              <>
+                                {getRoleIcon(message.sender?.site_role || '')}
+                                <span>{message.sender_name}</span>
+                              </>
+                            )}
+                          </div>
                           <span>{formatDate(message.created_at)}</span>
                         </div>
                       </div>
@@ -246,7 +286,7 @@ export default function MessagesPage() {
           {/* Message Detail */}
           <div className="lg:col-span-2">
             {selectedMessage ? (
-              <Card>
+              <Card className="shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -262,11 +302,27 @@ export default function MessagesPage() {
                       </span>
                     </div>
                   </CardTitle>
-                  <CardDescription>
-                    {selectedMessage.sender_id === user?.id ? 'To: ' : 'From: '}
-                    {selectedMessage.sender_id === user?.id 
-                      ? selectedMessage.recipient_name 
-                      : selectedMessage.sender_name}
+                  <CardDescription className="flex items-center space-x-2">
+                    <span>
+                      {selectedMessage.sender_id === user?.id ? 'To: ' : 'From: '}
+                    </span>
+                    {selectedMessage.sender_id === user?.id ? (
+                      <>
+                        {getRoleIcon(selectedMessage.recipient?.site_role || '')}
+                        <span>{selectedMessage.recipient_name}</span>
+                        <Badge className={`text-xs ${getRoleBadgeColor(selectedMessage.recipient?.site_role || '')}`}>
+                          {selectedMessage.recipient?.site_role}
+                        </Badge>
+                      </>
+                    ) : (
+                      <>
+                        {getRoleIcon(selectedMessage.sender?.site_role || '')}
+                        <span>{selectedMessage.sender_name}</span>
+                        <Badge className={`text-xs ${getRoleBadgeColor(selectedMessage.sender?.site_role || '')}`}>
+                          {selectedMessage.sender?.site_role}
+                        </Badge>
+                      </>
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -297,7 +353,7 @@ export default function MessagesPage() {
                 </CardContent>
               </Card>
             ) : (
-              <Card>
+              <Card className="shadow-lg">
                 <CardContent className="text-center py-12">
                   <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Select a Message</h3>
@@ -313,7 +369,7 @@ export default function MessagesPage() {
         {/* Compose Message Modal */}
         {showCompose && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-            <div className="bg-white rounded-lg max-w-sm sm:max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-lg max-w-sm sm:max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
               <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
@@ -331,7 +387,7 @@ export default function MessagesPage() {
                       id="recipient"
                       value={composeForm.recipient_id}
                       onChange={(e) => setComposeForm({ ...composeForm, recipient_id: e.target.value })}
-                      className="w-full px-3 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm sm:text-base h-10 sm:h-12 mt-1"
+                      className="w-full px-3 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base h-10 sm:h-12 mt-1"
                       required
                     >
                       <option value="">Select recipient...</option>
@@ -384,5 +440,6 @@ export default function MessagesPage() {
         )}
       </div>
     </div>
+    </RoleGuard>
   )
-} 
+}

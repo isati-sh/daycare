@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
@@ -40,7 +40,7 @@ export function SupabaseProvider({
   const [role, setRole] = useState<Role>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserRole = async (userId: string): Promise<Role> => {
+  const fetchUserRole = useCallback(async (userId: string): Promise<Role> => {
     const { data, error } = await client
       .from('profiles')
       .select('site_role')
@@ -52,8 +52,18 @@ export function SupabaseProvider({
       return null;
     }
 
+    // Update last_login when user accesses the app
+    const { error: updateError } = await client
+      .from('profiles')
+      .update({ last_login: new Date().toISOString() })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('Error updating last login:', updateError);
+    }
+
     return data?.site_role ?? null;
-  };
+  }, [client]);
 
   useEffect(() => {
     const getSession = async () => {
@@ -87,7 +97,7 @@ export function SupabaseProvider({
     return () => {
       listener.subscription.unsubscribe();
     };
-  }, [client]);
+  }, [client, fetchUserRole]);
 
   return (
     <SupabaseContext.Provider

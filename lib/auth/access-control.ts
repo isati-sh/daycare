@@ -5,9 +5,9 @@ export type SiteRole = 'admin' | 'teacher' | 'parent'
 
 // Define which roles can access which base paths
 const roleAccessMap: Record<SiteRole, string[]> = {
-  admin: ['/dashboard/admin', '/dashboard/teacher', '/dashboard/parent'],
-  teacher: ['/dashboard/teacher'],
-  parent: ['/dashboard/parent'],
+  admin: ['/dashboard/admin', '/dashboard/teacher', '/dashboard/parent', '/dashboard/messages', '/dashboard/enroll'],
+  teacher: ['/dashboard/teacher', '/dashboard/messages'],
+  parent: ['/dashboard/parent', '/dashboard/messages', '/dashboard/enroll'],
 }
 
 /**

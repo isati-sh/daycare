@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -20,9 +20,16 @@ type Child = Database['public']['Tables']['children']['Row'] & {
   emergency_contact: string | null
 }
 
+type Teacher = {
+  id: string
+  full_name: string
+  email: string
+}
+
 export default function AdminChildrenPage() {
   const { user, client, isAdmin } = useSupabase()
   const [children, setChildren] = useState<Child[]>([])
+  const [teachers, setTeachers] = useState<Teacher[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterGroup, setFilterGroup] = useState<string>('all')
@@ -43,13 +50,7 @@ export default function AdminChildrenPage() {
     status: 'active' as 'active' | 'inactive' | 'waitlist'
   })
 
-  useEffect(() => {
-    if (user && client) {
-      fetchChildren()
-    }
-  }, [user, client])
-
-  const fetchChildren = async () => {
+  const fetchChildren = useCallback(async () => {
     if (!user || !client) return
 
     try {
@@ -80,7 +81,35 @@ export default function AdminChildrenPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, client])
+
+  const fetchTeachers = useCallback(async () => {
+    if (!client) return
+
+    try {
+      const { data: teachersData, error } = await client
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('site_role', 'teacher')
+        .order('full_name')
+
+      if (error) {
+        console.error('Error fetching teachers:', error)
+        return
+      }
+
+      setTeachers(teachersData || [])
+    } catch (error) {
+      console.error('Error fetching teachers:', error)
+    }
+  }, [client])
+
+  useEffect(() => {
+    if (user && client) {
+      fetchChildren()
+      fetchTeachers()
+    }
+  }, [user, client, fetchChildren, fetchTeachers])
 
   const filteredChildren = children.filter(child => {
     const matchesSearch = 
@@ -494,13 +523,20 @@ export default function AdminChildrenPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="teacher_name" className="text-xs sm:text-sm">Teacher Name</Label>
-                <Input
+                <Label htmlFor="teacher_name" className="text-xs sm:text-sm">Teacher</Label>
+                <select
                   id="teacher_name"
                   value={childForm.teacher_name}
                   onChange={(e) => setChildForm({...childForm, teacher_name: e.target.value})}
-                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
-                />
+                  className="w-full px-3 py-2 sm:py-3 border border-gray-300 rounded-md text-sm sm:text-base h-10 sm:h-12 mt-1"
+                >
+                  <option value="">Not assigned</option>
+                  {teachers.map((teacher) => (
+                    <option key={teacher.id} value={teacher.full_name}>
+                      {teacher.full_name} ({teacher.email})
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label htmlFor="allergies" className="text-xs sm:text-sm">Allergies (comma-separated)</Label>
@@ -599,15 +635,22 @@ export default function AdminChildrenPage() {
                   <option value="preschool">Preschool</option>
                 </select>
               </div>
-              <div>
-                <Label htmlFor="edit_teacher_name" className="text-xs sm:text-sm">Teacher Name</Label>
-                <Input
+                <div>
+                <Label htmlFor="edit_teacher_name" className="text-xs sm:text-sm">Teacher</Label>
+                <select
                   id="edit_teacher_name"
                   value={childForm.teacher_name}
-                  onChange={(e) => setChildForm({...childForm, teacher_name: e.target.value})}
-                  className="h-10 sm:h-12 text-sm sm:text-base mt-1"
-                />
-              </div>
+                  onChange={(e) => setChildForm({ ...childForm, teacher_name: e.target.value })}
+                  className="w-full px-3 py-2 sm:py-3 border border-gray-300 rounded-md text-sm sm:text-base h-10 sm:h-12 mt-1"
+                >
+                  <option value="">Not assigned</option>
+                  {teachers.map((teacher) => (
+                  <option key={teacher.id} value={teacher.full_name}>
+                    {teacher.full_name} ({teacher.email})
+                  </option>
+                  ))}
+                </select>
+                </div>
               <div>
                 <Label htmlFor="edit_allergies" className="text-xs sm:text-sm">Allergies (comma-separated)</Label>
                 <Input

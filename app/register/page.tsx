@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
@@ -38,6 +38,16 @@ export default function RegisterPage() {
   const [isFirstUser, setIsFirstUser] = useState(false)
   const router = useRouter()
   const { user, client } = useSupabase()
+
+  // Check URL parameters for invitation (compute only once)
+  const { invitedEmail, isInvited } = useMemo(() => {
+    if (typeof window === 'undefined') return { invitedEmail: null, isInvited: false }
+    const urlParams = new URLSearchParams(window.location.search)
+    return {
+      invitedEmail: urlParams.get('email'),
+      isInvited: urlParams.get('invited') === 'true'
+    }
+  }, [])
 
   useEffect(() => {
     // Wait for user to load
@@ -80,16 +90,42 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
   })
 
+  // Handle invited user email pre-fill
+  useEffect(() => {
+    if (isInvited && invitedEmail) {
+      // Pre-fill the email for invited users
+      setValue('email', invitedEmail)
+    }
+  }, [isInvited, invitedEmail, setValue])
+
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true)
     try {
-      // If first user, set site_role to admin, else parent
-      const site_role = isFirstUser ? 'admin' : 'parent'
+      // Check if this email was invited (has inactive profile)
+      const { data: invitedProfile } = await client
+        .from('profiles')
+        .select('id, site_role, active_status')
+        .eq('email', data.email)
+        .single()
+
+      let site_role = null // default - admin will assign role later
+      let isInvitedUser = false
+
+      if (invitedProfile) {
+        // User was invited
+        site_role = invitedProfile.site_role || null
+        isInvitedUser = !invitedProfile.active_status
+      } else if (isFirstUser) {
+        // First user becomes admin
+        site_role = 'admin'
+      }
+
       const { error, data: signUpData } = await client.auth.signUp({
         email: data.email,
         password: data.password,
@@ -110,17 +146,26 @@ export default function RegisterPage() {
         return
       }
 
-      // After sign up, insert into profiles table if not already there
-      // (Supabase may do this via trigger, but we ensure it here)
+      // After sign up, update or insert profile
       if (signUpData?.user) {
         const { id } = signUpData.user
-        // Check if already in profiles
-        const { data: existingProfile } = await client
-          .from('profiles')
-          .select('id')
-          .eq('id', id)
-          .single()
-        if (!existingProfile) {
+        
+        if (invitedProfile) {
+          // Update existing invited profile
+          await client
+            .from('profiles')
+            .update({
+              full_name: data.fullName,
+              phone: data.phone || null,
+              address: data.address || null,
+              emergency_contact: data.emergencyContact || null,
+              active_status: true, // Activate the account
+              email_verified: true, // Mark as verified after signup
+              updated_at: new Date().toISOString()
+            })
+            .eq('email', data.email)
+        } else {
+          // Create new profile
           await client.from('profiles').insert([
             {
               id,
@@ -130,16 +175,20 @@ export default function RegisterPage() {
               phone: data.phone || null,
               address: data.address || null,
               emergency_contact: data.emergencyContact || null,
+              active_status: true,
+              email_verified: true, // Mark as verified after signup
             },
           ])
         }
       }
 
-      toast.success(
-        isFirstUser
-          ? 'Admin account created! Please check your email to verify your account.'
-          : 'Account created successfully! Please check your email to verify your account.'
-      )
+      const message = isInvitedUser 
+        ? 'Registration completed! Your account has been activated. Please check your email to verify your account.'
+        : isFirstUser
+        ? 'Admin account created! Please check your email to verify your account.'
+        : 'Account created successfully! Please check your email to verify your account.'
+
+      toast.success(message)
       router.push('/login')
     } catch (error) {
       toast.error('An unexpected error occurred')

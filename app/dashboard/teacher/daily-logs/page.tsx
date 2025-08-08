@@ -430,7 +430,7 @@ export default function TeacherDailyLogsPage() {
                   {/* Additional Info */}
                   <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-sm">
-                      <span className="font-medium">Bathroom visits:</span> {log.bathroom_visits}
+                      <span className="font-medium">Bathroom visits:</span> {Array.isArray(log.bathroom_visits) ? log.bathroom_visits.length : (log.bathroom_visits || 0)}
                     </div>
                     {log.diaper_changes && (
                       <div className="text-sm">
@@ -580,7 +580,7 @@ function EditDailyLogForm({
     behavior: log.behavior,
     sickness: log.sickness || '',
     medications: log.medications || '',
-    bathroom_visits: log.bathroom_visits || 0,
+    bathroom_visits: Array.isArray(log.bathroom_visits) ? log.bathroom_visits : [],
     diaper_changes: log.diaper_changes || null,
     photos: log.photos || []
   })
@@ -1009,12 +1009,21 @@ function EditDailyLogForm({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Bathroom Visits</label>
-          <Input
-            type="number"
-            min="0"
-            value={formData.bathroom_visits}
-            onChange={(e) => setFormData(prev => ({ ...prev, bathroom_visits: parseInt(e.target.value) || 0 }))}
-          />
+          <div className="space-y-2">
+            <div className="text-sm text-gray-600">
+              Total visits: {formData.bathroom_visits.length}
+            </div>
+            {formData.bathroom_visits.length > 0 && (
+              <div className="max-h-20 overflow-y-auto text-xs space-y-1">
+                {formData.bathroom_visits.map((visit, index) => (
+                  <div key={index} className="text-gray-500">
+                    {visit.time} - {visit.type} {visit.type === 'pee' && visit.pee_color ? `(${visit.pee_color})` : ''}
+                    {visit.type === 'poop' && visit.poop_type ? `(${visit.poop_type})` : ''}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Diaper Changes</label>

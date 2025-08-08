@@ -64,7 +64,7 @@ export async function middleware(req: NextRequest) {
     // 📌 Create profile if missing
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('site_role')
+      .select('site_role, active_status, email_verified')
       .eq('id', user.id)
       .single();
 
@@ -74,6 +74,8 @@ export async function middleware(req: NextRequest) {
         email: user.email,
         full_name: user.user_metadata?.full_name || '',
         site_role: null,
+        active_status: true, // New users who register directly are active
+        email_verified: true, // New users who complete signup are verified
         created_at: new Date().toISOString(),
       });
 
@@ -81,6 +83,16 @@ export async function middleware(req: NextRequest) {
         console.error('Failed to create profile:', insertRes.error);
         return NextResponse.redirect(new URL('/access-denied', req.url));
       }
+    }
+
+    // Check if user's email is verified from the database profile
+    if (profile && profile.email_verified === false) {
+      return NextResponse.redirect(new URL('/access-denied?reason=email-not-verified', req.url));
+    }
+
+    // Check if user profile is active (for invited users)
+    if (profile && !profile.active_status) {
+      return NextResponse.redirect(new URL('/access-denied?reason=account-not-activated', req.url));
     }
 
     if (pathname === '/login' || pathname === '/register') {
@@ -94,8 +106,13 @@ export async function middleware(req: NextRequest) {
         .eq('id', user.id)
         .single();
 
-      if (error || !roleProfile?.site_role) {
+      if (error || !roleProfile) {
         return NextResponse.redirect(new URL('/access-denied', req.url));
+      }
+
+      // If user has no role assigned, redirect to role pending page
+      if (!roleProfile.site_role) {
+        return NextResponse.redirect(new URL('/access-denied?reason=role-not-assigned', req.url));
       }
 
       const userRole = roleProfile.site_role;

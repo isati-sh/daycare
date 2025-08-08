@@ -18,6 +18,7 @@ import {
   Clock,
   Save,
   User,
+  Megaphone,
 } from 'lucide-react';
 import { useSupabase } from '@/components/providers/supabase-provider';
 import { Database } from '@/types/database';
@@ -28,6 +29,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import toast from 'react-hot-toast';
+import AnnouncementList from '@/components/ui/announcement-list';
+import { useUnreadMessages } from '@/lib/hooks/useUnreadMessages';
 
 // Types from database
 type Child = Database['public']['Tables']['children']['Row'];
@@ -132,7 +135,13 @@ const DailyLogForm: React.FC<DailyLogFormProps> = ({
     behavior: null as DailyLog['behavior'],
     sickness: '',
     medications: '',
-    bathroom_visits: 0,
+    bathroom_visits: [] as Array<{
+      time: string;
+      type: 'pee' | 'poop';
+      pee_color?: 'clear' | 'light_yellow' | 'dark_yellow' | 'other';
+      poop_type?: 'soft' | 'formed' | 'hard' | 'loose' | 'watery';
+      notes?: string;
+    }>,
     diaper_changes: 0,
     photos: [] as string[],
   });
@@ -162,7 +171,7 @@ const DailyLogForm: React.FC<DailyLogFormProps> = ({
         behavior: editLog.behavior || null,
         sickness: editLog.sickness || '',
         medications: editLog.medications || '',
-        bathroom_visits: editLog.bathroom_visits || 0,
+        bathroom_visits: editLog.bathroom_visits || [],
         diaper_changes: editLog.diaper_changes || 0,
         photos: editLog.photos || [],
       });
@@ -650,37 +659,192 @@ const DailyLogForm: React.FC<DailyLogFormProps> = ({
             </div>
 
             {/* Care Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-6">
+              {/* Bathroom Visits */}
               <div>
-                <Label htmlFor="bathroom_visits">Bathroom Visits</Label>
-                <Input
-                  id="bathroom_visits"
-                  type="number"
-                  min="0"
-                  value={formData.bathroom_visits}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      bathroom_visits: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                />
+                <div className="flex items-center justify-between mb-4">
+                  <Label className="text-lg font-semibold">Bathroom Visits</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      const newVisit = {
+                        time: new Date().toLocaleTimeString('en-US', { 
+                          hour12: false, 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        }),
+                        type: 'pee' as const,
+                        pee_color: 'light_yellow' as const,
+                        notes: ''
+                      }
+                      setFormData(prev => ({
+                        ...prev,
+                        bathroom_visits: [...prev.bathroom_visits, newVisit]
+                      }))
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Visit
+                  </Button>
+                </div>
+                
+                {formData.bathroom_visits.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                    <p className="text-gray-500">No bathroom visits recorded yet</p>
+                    <p className="text-sm text-gray-400">Click "Add Visit" to record bathroom activities</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {formData.bathroom_visits.map((visit, index) => (
+                      <div key={index} className="p-4 border rounded-lg bg-gray-50">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div>
+                            <Label htmlFor={`visit_time_${index}`}>Time</Label>
+                            <Input
+                              id={`visit_time_${index}`}
+                              type="time"
+                              value={visit.time}
+                              onChange={(e) => {
+                                const updatedVisits = [...formData.bathroom_visits]
+                                updatedVisits[index] = { ...updatedVisits[index], time: e.target.value }
+                                setFormData(prev => ({ ...prev, bathroom_visits: updatedVisits }))
+                              }}
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor={`visit_type_${index}`}>Type</Label>
+                            <select
+                              id={`visit_type_${index}`}
+                              value={visit.type}
+                              onChange={(e) => {
+                                const updatedVisits = [...formData.bathroom_visits]
+                                updatedVisits[index] = { 
+                                  ...updatedVisits[index], 
+                                  type: e.target.value as 'pee' | 'poop',
+                                  // Reset type-specific fields
+                                  pee_color: e.target.value === 'pee' ? 'light_yellow' : undefined,
+                                  poop_type: e.target.value === 'poop' ? 'formed' : undefined
+                                }
+                                setFormData(prev => ({ ...prev, bathroom_visits: updatedVisits }))
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="pee">Pee</option>
+                              <option value="poop">Poop</option>
+                            </select>
+                          </div>
+                          
+                          {visit.type === 'pee' && (
+                            <div>
+                              <Label htmlFor={`pee_color_${index}`}>Pee Color</Label>
+                              <select
+                                id={`pee_color_${index}`}
+                                value={visit.pee_color || 'light_yellow'}
+                                onChange={(e) => {
+                                  const updatedVisits = [...formData.bathroom_visits]
+                                  updatedVisits[index] = { 
+                                    ...updatedVisits[index], 
+                                    pee_color: e.target.value as 'clear' | 'light_yellow' | 'dark_yellow' | 'other'
+                                  }
+                                  setFormData(prev => ({ ...prev, bathroom_visits: updatedVisits }))
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="clear">Clear</option>
+                                <option value="light_yellow">Light Yellow</option>
+                                <option value="dark_yellow">Dark Yellow</option>
+                                <option value="other">Other</option>
+                              </select>
+                            </div>
+                          )}
+                          
+                          {visit.type === 'poop' && (
+                            <div>
+                              <Label htmlFor={`poop_type_${index}`}>Poop Type</Label>
+                              <select
+                                id={`poop_type_${index}`}
+                                value={visit.poop_type || 'formed'}
+                                onChange={(e) => {
+                                  const updatedVisits = [...formData.bathroom_visits]
+                                  updatedVisits[index] = { 
+                                    ...updatedVisits[index], 
+                                    poop_type: e.target.value as 'soft' | 'formed' | 'hard' | 'loose' | 'watery'
+                                  }
+                                  setFormData(prev => ({ ...prev, bathroom_visits: updatedVisits }))
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="soft">Soft</option>
+                                <option value="formed">Formed</option>
+                                <option value="hard">Hard</option>
+                                <option value="loose">Loose</option>
+                                <option value="watery">Watery</option>
+                              </select>
+                            </div>
+                          )}
+                          
+                          {visit.type === 'pee' ? (
+                            <div></div>
+                          ) : null}
+                        </div>
+                        
+                        <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="md:col-span-3">
+                            <Label htmlFor={`visit_notes_${index}`}>Notes (optional)</Label>
+                            <Input
+                              id={`visit_notes_${index}`}
+                              value={visit.notes || ''}
+                              onChange={(e) => {
+                                const updatedVisits = [...formData.bathroom_visits]
+                                updatedVisits[index] = { ...updatedVisits[index], notes: e.target.value }
+                                setFormData(prev => ({ ...prev, bathroom_visits: updatedVisits }))
+                              }}
+                              placeholder="Any additional notes..."
+                            />
+                          </div>
+                          
+                          <div className="flex items-end">
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                const updatedVisits = formData.bathroom_visits.filter((_, i) => i !== index)
+                                setFormData(prev => ({ ...prev, bathroom_visits: updatedVisits }))
+                              }}
+                              className="w-full"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div>
-                <Label htmlFor="diaper_changes">Diaper Changes</Label>
-                <Input
-                  id="diaper_changes"
-                  type="number"
-                  min="0"
-                  value={formData.diaper_changes}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
+
+              {/* Diaper Changes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="diaper_changes">Diaper Changes</Label>
+                  <Input
+                    id="diaper_changes"
+                    type="number"
+                    min="0"
+                    value={formData.diaper_changes}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
                       ...prev,
                       diaper_changes: parseInt(e.target.value) || 0,
                     }))
                   }
                 />
               </div>
+            </div>
             </div>
 
             {/* Health Information */}
@@ -749,6 +913,7 @@ const DailyLogForm: React.FC<DailyLogFormProps> = ({
 // Main Teacher Dashboard Component
 export default function TeacherDashboard() {
   const { user, client } = useSupabase();
+  const { unreadCount } = useUnreadMessages();
   const [children, setChildren] = useState<Child[]>([]);
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [activities, setActivities] = useState<ActivityType[]>([]);
@@ -932,12 +1097,13 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+              <User className="h-8 w-8 text-green-600 mr-3" />
               Teacher Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
@@ -954,10 +1120,26 @@ export default function TeacherDashboard() {
             </a>
             <a
               href="/dashboard/teacher/activities"
-              className="inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 border bg-blue-500 border-gray-300 text-white hover:bg-gray-50 hover:text-gray-700 focus:ring-blue-500 px-4 py-2 text-sm"
+              className="inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 border bg-blue-500 border-gray-300 text-white hover:bg-blue-600 focus:ring-blue-500 px-4 py-2 text-sm"
             >
               <Activity className="h-4 w-4 mr-2" />
               Plan Activities
+            </a>
+            <a
+              href="/dashboard/messages"
+              className={`inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 border px-4 py-2 text-sm relative ${
+                unreadCount > 0 
+                  ? 'bg-red-500 text-white hover:bg-red-600 border-red-500 focus:ring-red-500' 
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-200 focus:ring-blue-500'
+              }`}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Messages
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-white text-red-500 text-xs rounded-full px-2 py-1 min-w-[20px] text-center font-bold">
+                  {unreadCount}
+                </span>
+              )}
             </a>
           </div>
         </div>
@@ -1082,7 +1264,7 @@ export default function TeacherDashboard() {
                           <span>
                             Activities: {todayLog.activities?.length || 0}
                           </span>
-                          <span>Bathroom: {todayLog.bathroom_visits || 0}</span>
+                          <span>Bathroom: {Array.isArray(todayLog.bathroom_visits) ? todayLog.bathroom_visits.length : (todayLog.bathroom_visits || 0)}</span>
                           <span>
                             Updated:{' '}
                             {new Date(todayLog.updated_at).toLocaleTimeString(
@@ -1230,6 +1412,19 @@ export default function TeacherDashboard() {
                   </span>
                 </Button>
               </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Announcements */}
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+            <Megaphone className="h-5 w-5 mr-2 text-blue-600" />
+            Announcements
+          </h2>
+          <Card>
+            <div className="p-6">
+              <AnnouncementList compact={true} maxItems={3} />
             </div>
           </Card>
         </div>

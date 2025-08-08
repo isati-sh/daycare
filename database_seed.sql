@@ -22,10 +22,10 @@ TRUNCATE TABLE children CASCADE;
 -- This assumes the users already exist in the profiles table
 
 -- Update existing profiles with additional data (using UPSERT)
-INSERT INTO profiles (id, site_role, email, full_name, phone, address, emergency_contact, active_status, last_login) VALUES
-('48abd6fc-eb67-4170-83fd-a3f5670412fd', 'admin', 'admin@daycare.com', 'Sarah Johnson', '555-0101', '123 Admin St, City, ST 12345', 'Emergency Admin Contact: 555-0102', true, NOW() - INTERVAL '1 hour'),
-('f5c5bef8-c2c5-4703-b6fb-e63952bf8214', 'parent', 'parent@example.com', 'Michael Smith', '555-0201', '456 Parent Ave, City, ST 12345', 'Grandma Smith: 555-0202', true, NOW() - INTERVAL '2 hours'),
-('f8745e5e-d84b-41ec-8076-54744b93d875', 'teacher', 'teacher@daycare.com', 'Emma Wilson', '555-0301', '789 Teacher Blvd, City, ST 12345', 'Teacher Emergency: 555-0302', true, NOW() - INTERVAL '30 minutes')
+INSERT INTO profiles (id, site_role, email, full_name, phone, address, emergency_contact, active_status, email_verified, last_login) VALUES
+('48abd6fc-eb67-4170-83fd-a3f5670412fd', 'admin', 'admin@daycare.com', 'Sarah Johnson', '555-0101', '123 Admin St, City, ST 12345', 'Emergency Admin Contact: 555-0102', true, true, NOW() - INTERVAL '1 hour'),
+('f5c5bef8-c2c5-4703-b6fb-e63952bf8214', 'parent', 'parent@example.com', 'Michael Smith', '555-0201', '456 Parent Ave, City, ST 12345', 'Grandma Smith: 555-0202', true, true, NOW() - INTERVAL '2 hours'),
+('f8745e5e-d84b-41ec-8076-54744b93d875', 'teacher', 'teacher@daycare.com', 'Emma Wilson', '555-0301', '789 Teacher Blvd, City, ST 12345', 'Teacher Emergency: 555-0302', true, true, NOW() - INTERVAL '30 minutes')
 ON CONFLICT (id) DO UPDATE SET
   site_role = EXCLUDED.site_role,
   email = EXCLUDED.email,
@@ -34,6 +34,7 @@ ON CONFLICT (id) DO UPDATE SET
   address = EXCLUDED.address,
   emergency_contact = EXCLUDED.emergency_contact,
   active_status = EXCLUDED.active_status,
+  email_verified = EXCLUDED.email_verified,
   last_login = EXCLUDED.last_login,
   updated_at = NOW();
 

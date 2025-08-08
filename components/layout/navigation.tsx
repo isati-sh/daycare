@@ -15,8 +15,13 @@ import {
   Users,
   Home, 
   Settings,
+  UserPlus,
+  MessageSquare,
+  Calendar,
+  BarChart3,
 } from 'lucide-react'
 import { useSignOut } from '@/lib/auth/sign-out'
+import { useUnreadMessages } from '@/lib/hooks/useUnreadMessages'
 
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false)
@@ -24,6 +29,7 @@ export default function Navigation() {
   const [isClient, setIsClient] = useState(false)
   const { user, role, isAdmin } = useSupabase()
   const { signOut } = useSignOut()
+  const { unreadCount } = useUnreadMessages()
   const isTeacher = role === 'teacher'
   const isParent = role === 'parent'
 
@@ -354,6 +360,51 @@ export default function Navigation() {
                 Manage Children
               </Link>
               <Link
+                href="/dashboard/admin/users"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <UserPlus className="w-4 h-4 mr-3" />
+                Manage Users
+              </Link>
+              <Link
+                href="/dashboard/messages"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <MessageSquare className="w-4 h-4 mr-3" />
+                Messages
+                {unreadCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </Link>
+              <Link
+                href="/dashboard/admin/announcements"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <Settings className="w-4 h-4 mr-3" />
+                Announcements
+              </Link>
+              <Link
+                href="/dashboard/admin/reports"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <BarChart3 className="w-4 h-4 mr-3" />
+                Reports
+              </Link>
+              <Link
+                href="/dashboard/admin/schedule"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <Calendar className="w-4 h-4 mr-3" />
+                Schedule
+              </Link>
+              <Link
                 href="/dashboard/admin/profile"
                 className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
                 onClick={() => setIsOpen(false)}
@@ -398,6 +449,27 @@ export default function Navigation() {
                 Daily Logs
               </Link>
               <Link
+                href="/dashboard/teacher/reports"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <BarChart3 className="w-4 h-4 mr-3" />
+                Reports
+              </Link>
+              <Link
+                href="/dashboard/messages"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <MessageSquare className="w-4 h-4 mr-3" />
+                Messages
+                {unreadCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </Link>
+              <Link
                 href="/dashboard/teacher/profile"
                 className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
                 onClick={() => setIsOpen(false)}
@@ -440,6 +512,35 @@ export default function Navigation() {
               >
                 <FileText className="w-4 h-4 mr-3" />
                 Child Reports
+              </Link>
+              <Link
+                href="/dashboard/parent/daily-logs"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <FileText className="w-4 h-4 mr-3" />
+                Daily Logs
+              </Link>
+              <Link
+                href="/dashboard/parent/emergency-contacts"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <User className="w-4 h-4 mr-3" />
+                Emergency Contacts
+              </Link>
+              <Link
+                href="/dashboard/messages"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <MessageSquare className="w-4 h-4 mr-3" />
+                Messages
+                {unreadCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
               <Link
                 href="/dashboard/parent/profile"

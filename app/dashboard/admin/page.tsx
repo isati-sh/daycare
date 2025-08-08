@@ -7,24 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Users, 
-  Baby, 
-  UserCheck, 
-  Calendar,
-  Activity,
-  AlertTriangle,
-  Mail,
-  Clock,
-  TrendingUp,
-  Plus,
-  Settings,
-  FileText,
-  Shield,
-  ChevronRight,
-  BookOpen
+  Shield, Baby, Users, UserCheck, Activity, Calendar, 
+  AlertTriangle, MessageSquare, Clock, Settings, Plus, 
+  Mail, FileText, Megaphone
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { useUnreadMessages } from '@/lib/hooks/useUnreadMessages';
+import AnnouncementList from '@/components/ui/announcement-list';
 
 interface DashboardStats {
   totalChildren: number;
@@ -49,6 +39,7 @@ const AdminDashboardPage = () => {
   // Remove useAuth, get user from useSupabase instead
   const { user } = useSupabase();
   const { client } = useSupabase();
+  const { unreadCount } = useUnreadMessages();
   const [stats, setStats] = useState<DashboardStats>({
     totalChildren: 0,
     activeChildren: 0,
@@ -343,14 +334,23 @@ const AdminDashboardPage = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={unreadCount > 0 ? "bg-red-50 border-red-200" : ""}>
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">System Health</p>
-                    <p className="text-2xl font-bold text-green-600">Good</p>
+                    <p className="text-sm text-gray-600">Unread Messages</p>
+                    <p className={`text-2xl font-bold ${unreadCount > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                      {unreadCount}
+                    </p>
+                    {unreadCount > 0 && (
+                      <Link href="/dashboard/messages">
+                        <Badge className="bg-red-500 hover:bg-red-600 text-white text-xs">
+                          View Messages
+                        </Badge>
+                      </Link>
+                    )}
                   </div>
-                  <TrendingUp className="h-8 w-8 text-green-500" />
+                  <MessageSquare className={`h-8 w-8 ${unreadCount > 0 ? 'text-red-500' : 'text-gray-500'}`} />
                 </div>
               </CardContent>
             </Card>
@@ -379,10 +379,25 @@ const AdminDashboardPage = () => {
               </Link>
             </Button>
 
-            <Button asChild variant="outline" className="h-auto p-4 flex-col space-y-2">
+            <Button asChild variant="outline" className="h-auto p-4 flex-col space-y-2 bg-purple-50 border-purple-200 hover:bg-purple-100">
+              <Link href="/dashboard/enroll">
+                <Baby className="h-6 w-6 text-purple-600" />
+                <span className="text-purple-700">Enroll Child</span>
+              </Link>
+            </Button>
+          </div>
+
+          {/* Messages Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <Button asChild variant="outline" className={`h-auto p-4 flex-col space-y-2 relative ${unreadCount > 0 ? 'border-red-200 bg-red-50' : ''}`}>
               <Link href="/dashboard/messages">
-                <Mail className="h-6 w-6" />
+                <MessageSquare className="h-6 w-6" />
                 <span>Messages</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
             </Button>
           </div>
@@ -429,35 +444,18 @@ const AdminDashboardPage = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <Settings className="h-5 w-5 mr-2" />
-                  Quick Actions
+                  <Megaphone className="h-5 w-5 mr-2" />
+                  Active Announcements
                 </CardTitle>
-                <CardDescription>Common administrative tasks</CardDescription>
+                <CardDescription>Current announcements for all users</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <Button asChild variant="outline" className="w-full justify-start">
-                    <Link href="/dashboard/admin/add-member">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add New Member
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
-                    <Link href="/dashboard/admin/children">
-                      <Baby className="h-4 w-4 mr-2" />
-                      View All Children
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
-                    <Link href="/dashboard/admin/teachers">
-                      <Users className="h-4 w-4 mr-2" />
-                      Manage Teachers
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
-                    <Link href="/dashboard/messages">
-                      <Mail className="h-4 w-4 mr-2" />
-                      System Messages
+                <AnnouncementList compact={true} maxItems={3} showTitle={false} />
+                <div className="mt-4 pt-4 border-t">
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href="/dashboard/admin/announcements">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Manage Announcements
                     </Link>
                   </Button>
                 </div>

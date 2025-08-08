@@ -38,11 +38,13 @@ interface Parent {
 export default function AdminParentsPage() {
   const { user, client } = useSupabase()
   const [parents, setParents] = useState<Parent[]>([])
+  const [unassignedUsers, setUnassignedUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [editingParent, setEditingParent] = useState<Parent | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState('')
   const [parentForm, setParentForm] = useState({
     email: '',
     full_name: '',
@@ -54,32 +56,31 @@ export default function AdminParentsPage() {
 
   useEffect(() => {
     if (user && client) {
-      fetchParents()
+      Promise.all([fetchParents(), fetchUnassignedUsers()]).finally(() => {
+        setLoading(false)
+      })
     }
   }, [user, client])
 
   const fetchParents = async () => {
-    if (!user || !client) return
+    if (!client) return
 
     try {
-      setLoading(true)
-
-      // Fetch parents from profiles table
-      const { data: parentsData, error: parentsError } = await client
+      const { data, error } = await client
         .from('profiles')
         .select('*')
         .eq('site_role', 'parent')
         .order('created_at', { ascending: false })
 
-      if (parentsError) {
-        console.error('Error fetching parents:', parentsError)
+      if (error) {
+        console.error('Error fetching parents:', error)
         toast.error('Failed to load parents')
         return
       }
 
-      // Fetch children count for each parent
-      const parentsWithChildrenCount = await Promise.all(
-        parentsData.map(async (parent) => {
+      // Fetch children count for each parent separately
+      const parentsWithCounts = await Promise.all(
+        (data || []).map(async (parent: any) => {
           const { data: childrenData, error: childrenError } = await client
             .from('children')
             .select('id')
@@ -91,30 +92,43 @@ export default function AdminParentsPage() {
           }
 
           return {
-            id: parent.id,
-            email: parent.email,
-            full_name: parent.full_name,
-            phone: parent.phone,
-            address: parent.address,
-            emergency_contact: parent.emergency_contact,
-            created_at: parent.created_at,
-            children_count: childrenData?.length || 0,
-            active_status: parent.active_status,
-            last_login: parent.last_login
+            ...parent,
+            children_count: childrenData?.length || 0
           }
         })
       )
 
-      setParents(parentsWithChildrenCount)
+      setParents(parentsWithCounts)
     } catch (error) {
-      console.error('Error fetching parents:', error)
+      console.error('Error:', error)
       toast.error('Failed to load parents')
-    } finally {
-      setLoading(false)
+    }
+  }
+
+  const fetchUnassignedUsers = async () => {
+    if (!client) return
+
+    try {
+      const { data, error } = await client
+        .from('profiles')
+        .select('*')
+        .is('site_role', null)
+        .eq('active_status', true)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching unassigned users:', error)
+        return
+      }
+
+      setUnassignedUsers(data || [])
+    } catch (error) {
+      console.error('Error:', error)
     }
   }
 
   const resetForm = () => {
+    setSelectedUserId('')
     setParentForm({
       email: '',
       full_name: '',
@@ -126,42 +140,38 @@ export default function AdminParentsPage() {
   }
 
   const handleAddParent = async () => {
-    if (!client) return
+    if (!client || !selectedUserId) {
+      toast.error('Please select a user to assign as parent')
+      return
+    }
 
     try {
-      // Validate required fields
-      if (!parentForm.email || !parentForm.full_name) {
-        toast.error('Email and full name are required')
-        return
-      }
-
-      // Create new parent profile
-      const { data, error } = await client
+      // Update the selected user's profile to assign parent role
+      const { error } = await client
         .from('profiles')
-        .insert({
-          email: parentForm.email,
-          full_name: parentForm.full_name,
+        .update({ 
+          site_role: 'parent',
           phone: parentForm.phone || null,
           address: parentForm.address || null,
-          emergency_contact: parentForm.emergency_contact || null,
-          active_status: parentForm.active_status,
-          site_role: 'parent'
+          emergency_contact: parentForm.emergency_contact || null
         })
-        .select()
+        .eq('id', selectedUserId)
 
       if (error) {
-        console.error('Error adding parent:', error)
-        toast.error('Failed to add parent')
+        console.error('Error assigning parent role:', error)
+        toast.error('Failed to assign parent role')
         return
       }
 
-      toast.success('Parent added successfully')
+      toast.success('Parent role assigned successfully')
       setShowAddForm(false)
+      setSelectedUserId('')
       resetForm()
       fetchParents() // Refresh the list
+      fetchUnassignedUsers() // Refresh unassigned users
     } catch (error) {
-      console.error('Error adding parent:', error)
-      toast.error('Failed to add parent')
+      console.error('Error assigning parent role:', error)
+      toast.error('Failed to assign parent role')
     }
   }
 
@@ -321,7 +331,10 @@ export default function AdminParentsPage() {
             />
           </div>
           <Button 
-            onClick={() => setShowAddForm(true)}
+            onClick={() => {
+              setShowAddForm(true)
+              fetchUnassignedUsers()
+            }}
             className="h-10 sm:h-12 px-4 sm:px-6 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
           >
             <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
@@ -452,111 +465,113 @@ export default function AdminParentsPage() {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 md:p-8">
                 <div className="space-y-6 sm:space-y-8">
-                  {/* Personal Information Section */}
+                  {/* User Selection Section */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-xl border border-blue-200">
                     <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
                       <Users className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-600" />
-                      Personal Information
+                      Select User to Assign as Parent
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                      <div className="space-y-2 sm:space-y-3 md:col-span-2">
-                        <label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center">
-                          <span className="text-red-500 mr-1">*</span>
-                          Full Name
-                        </label>
-                        <Input
-                          value={parentForm.full_name}
-                          onChange={(e) => setParentForm({...parentForm, full_name: e.target.value})}
-                          placeholder="Enter parent's full name"
-                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-sm sm:text-base"
-                        />
+                    
+                    {unassignedUsers.length === 0 ? (
+                      <div className="text-center py-8">
+                        <UserCheck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600">No unassigned users available</p>
+                        <p className="text-sm text-gray-400">All users already have roles assigned</p>
                       </div>
-                      
-                      <div className="space-y-2 sm:space-y-3">
-                        <label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center">
-                          <span className="text-red-500 mr-1">*</span>
-                          Email Address
-                        </label>
-                        <Input
-                          value={parentForm.email}
-                          onChange={(e) => setParentForm({...parentForm, email: e.target.value})}
-                          placeholder="parent@example.com"
-                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-sm sm:text-base"
-                        />
+                    ) : (
+                      <div className="space-y-3">
+                        {unassignedUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                              selectedUserId === user.id
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => setSelectedUserId(user.id)}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="flex-shrink-0">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                                  <Users className="h-5 w-5 text-white" />
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-gray-900">{user.full_name}</h4>
+                                <p className="text-sm text-gray-600">{user.email}</p>
+                                {user.phone && (
+                                  <p className="text-xs text-gray-500">{user.phone}</p>
+                                )}
+                              </div>
+                              {selectedUserId === user.id && (
+                                <div className="flex-shrink-0">
+                                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <UserCheck className="h-4 w-4 text-white" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      
-                      <div className="space-y-2 sm:space-y-3">
-                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
-                          Phone Number
-                        </label>
-                        <Input
-                          value={parentForm.phone}
-                          onChange={(e) => setParentForm({...parentForm, phone: e.target.value})}
-                          placeholder="+1 (555) 123-4567"
-                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg text-sm sm:text-base"
-                        />
-                      </div>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Contact Information Section */}
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 sm:p-6 rounded-xl border border-purple-200">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
-                      <Contact className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-purple-600" />
-                      Contact Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                      <div className="space-y-2 sm:space-y-3 md:col-span-2">
-                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
-                          Address
-                        </label>
-                        <Input
-                          value={parentForm.address}
-                          onChange={(e) => setParentForm({...parentForm, address: e.target.value})}
-                          placeholder="Enter full address"
-                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg text-sm sm:text-base"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2 sm:space-y-3">
-                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
-                          Emergency Contact
-                        </label>
-                        <Input
-                          value={parentForm.emergency_contact}
-                          onChange={(e) => setParentForm({...parentForm, emergency_contact: e.target.value})}
-                          placeholder="Emergency contact number"
-                          className="h-10 sm:h-12 border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg text-sm sm:text-base"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2 sm:space-y-3">
-                        <label className="text-xs sm:text-sm font-semibold text-gray-700">
-                          Status
-                        </label>
-                        <div className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            id="active_status"
-                            checked={parentForm.active_status}
-                            onChange={(e) => setParentForm({...parentForm, active_status: e.target.checked})}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <label htmlFor="active_status" className="text-xs sm:text-sm text-gray-700">
-                            Active parent
+                  {/* Additional Contact Information (Optional) */}
+                  {selectedUserId && (
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 sm:p-6 rounded-xl border border-purple-200">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
+                        <Contact className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-purple-600" />
+                        Additional Contact Information (Optional)
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                        <div className="space-y-2 sm:space-y-3">
+                          <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                            Phone Number
                           </label>
+                          <Input
+                            value={parentForm.phone}
+                            onChange={(e) => setParentForm({...parentForm, phone: e.target.value})}
+                            placeholder="+1 (555) 123-4567"
+                            className="h-10 sm:h-12 border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg text-sm sm:text-base"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2 sm:space-y-3">
+                          <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                            Emergency Contact
+                          </label>
+                          <Input
+                            value={parentForm.emergency_contact}
+                            onChange={(e) => setParentForm({...parentForm, emergency_contact: e.target.value})}
+                            placeholder="Emergency contact number"
+                            className="h-10 sm:h-12 border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg text-sm sm:text-base"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2 sm:space-y-3 md:col-span-2">
+                          <label className="text-xs sm:text-sm font-semibold text-gray-700">
+                            Address
+                          </label>
+                          <Input
+                            value={parentForm.address}
+                            onChange={(e) => setParentForm({...parentForm, address: e.target.value})}
+                            placeholder="Enter full address"
+                            className="h-10 sm:h-12 border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg text-sm sm:text-base"
+                          />
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 pt-6 border-t border-gray-200">
                     <Button 
                       onClick={handleAddParent}
-                      className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all duration-300"
+                      disabled={!selectedUserId}
+                      className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Plus className="h-5 w-5 mr-2" />
-                      Add Parent to System
+                      Assign Parent Role
                     </Button>
                     <Button 
                       variant="outline" 

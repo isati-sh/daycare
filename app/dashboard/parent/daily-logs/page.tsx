@@ -341,7 +341,9 @@ export default function ParentDailyLogsPage() {
                   {/* Care Details */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-600">{log.bathroom_visits}</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {Array.isArray(log.bathroom_visits) ? log.bathroom_visits.length : (log.bathroom_visits || 0)}
+                      </p>
                       <p className="text-sm text-gray-600">Bathroom Visits</p>
                     </div>
                     {log.diaper_changes && (

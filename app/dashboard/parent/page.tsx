@@ -18,11 +18,15 @@ import {
   Smile, 
   AlertTriangle,
   Plus,
-  ArrowRight
+  ArrowRight,
+  User,
+  Megaphone
 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Database } from '@/types/database'
+import { useUnreadMessages } from '@/lib/hooks/useUnreadMessages'
+import AnnouncementList from '@/components/ui/announcement-list'
 
 type Child = Database['public']['Tables']['children']['Row'] & {
   photo_url?: string
@@ -56,6 +60,7 @@ interface Message {
 export default function ParentDashboard() {
   const { user } = useSupabase()
   const { client } = useSupabase()
+  const { unreadCount } = useUnreadMessages()
   const [children, setChildren] = useState<Child[]>([])
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
   const [messages, setMessages] = useState<Message[]>([])
@@ -180,28 +185,37 @@ export default function ParentDashboard() {
 
   return (
     <RoleGuard path="/dashboard/parent">
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Parent Dashboard</h1>
-            <p className="text-gray-600">Welcome back! Here's what's happening with your children today.</p>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
+        <div className="p-6 space-y-6 max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+                <Heart className="h-8 w-8 text-purple-600 mr-3" />
+                Parent Dashboard
+              </h1>
+              <p className="text-gray-600 mt-2">Welcome back! Here's what's happening with your children today.</p>
+            </div>
+            <div className="flex space-x-2">
+              <Button asChild variant="outline">
+                <Link href="/dashboard/parent/children">
+                  <Baby className="h-4 w-4 mr-2" />
+                  View Children
+                </Link>
+              </Button>
+              <Button asChild className={unreadCount > 0 ? "bg-red-500 hover:bg-red-600" : ""}>
+                <Link href="/dashboard/messages" className="relative">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Messages
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-white text-red-500 text-xs rounded-full px-2 py-1 min-w-[20px] text-center font-bold">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Link>
+              </Button>
+            </div>
           </div>
-          <div className="flex space-x-2">
-            <Button asChild variant="outline">
-              <Link href="/dashboard/parent/children">
-                <Baby className="h-4 w-4 mr-2" />
-                View Children
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/dashboard/messages">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Messages
-              </Link>
-            </Button>
-          </div>
-        </div>
 
         {/* Children Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -325,45 +339,17 @@ export default function ParentDashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Messages */}
+          {/* Announcements */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <MessageSquare className="h-5 w-5" />
-                <span>Recent Messages</span>
+                <Megaphone className="h-5 w-5" />
+                <span>Announcements</span>
               </CardTitle>
-              <CardDescription>Latest communications from the daycare</CardDescription>
+              <CardDescription>Important updates from the daycare</CardDescription>
             </CardHeader>
             <CardContent>
-              {messages.length > 0 ? (
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div key={message.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold">{message.title}</h4>
-                        {!message.read && (
-                          <Badge variant="secondary" className="text-xs">New</Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">{message.content}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">
-                          {new Date(message.created_at).toLocaleDateString()}
-                        </span>
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {message.type}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No recent messages.</p>
-                  <p className="text-sm text-gray-400 mt-1">You're all caught up!</p>
-                </div>
-              )}
+              <AnnouncementList compact={true} maxItems={4} />
               <Button asChild className="w-full mt-4" variant="outline">
                 <Link href="/dashboard/messages">
                   View All Messages
@@ -409,6 +395,7 @@ export default function ParentDashboard() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </RoleGuard>
   )
