@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -27,12 +27,11 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-function LoginForm() {
+export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard';
   const { user, loading } = useSupabase();
 
   const {
@@ -43,11 +42,32 @@ function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
+  // Only check for redirect after component mounts (client-side only)
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     if (user && !loading) {
+      // Get redirectTo from URL params client-side only
+      const params = new URLSearchParams(window.location.search);
+      const redirectTo = params.get('redirectTo') || '/dashboard';
       router.push(redirectTo);
     }
-  }, [user, loading, router, redirectTo]);
+  }, [user, loading, router, mounted]);
+
+  // Don't render form until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const onSubmit = async (data: LoginForm) => {
     if (isLoading) return;
@@ -68,6 +88,7 @@ function LoginForm() {
             ? 'Invalid email or password'
             : error.message
         );
+        setIsLoading(false);
         return;
       }
 
@@ -76,11 +97,10 @@ function LoginForm() {
         .select('site_role')
         .eq('id', signInData.user.id)
         .single();
-      
-      console.log(profile, 'profile')
 
       if (profileError || !profile?.site_role) {
         toast.error('Could not fetch user role');
+        setIsLoading(false);
         return;
       }
 
@@ -178,13 +198,5 @@ function LoginForm() {
         </Card>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div className="text-center mt-10">Loading...</div>}>
-      <LoginForm />
-    </Suspense>
   );
 }
