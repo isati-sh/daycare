@@ -3,6 +3,7 @@
 import { SupabaseProvider } from "@/components/providers/supabase-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ToasterProvider } from "@/components/providers/toaster-provider";
+import { AuthProvider } from "@/components/providers/auth-provider";
 import type { ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 
@@ -22,9 +23,12 @@ export function Providers({ children, serverSession }: ProvidersProps) {
       disableTransitionOnChange
     >
       <SupabaseProvider serverSession={serverSession}>
-        {children}
-        <ToasterProvider />
+        <AuthProvider>
+          {children}
+          <ToasterProvider />
+        </AuthProvider>
       </SupabaseProvider>
     </ThemeProvider>
   );
 }
+

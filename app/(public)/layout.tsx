@@ -1,9 +1,16 @@
-// Public layout - minimal, no dashboard components
+import Navigation from '@/components/layout/navigation'
+
+// Public layout - includes top navigation
 export default function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      <Navigation />
+      {children}
+    </>
+  )
 }
 
