@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -43,7 +44,7 @@ interface Profile {
 }
 
 export default function ProfilePage() {
-  const { user, client } = useSupabase()
+  const { user } = useSupabase()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -62,11 +63,16 @@ export default function ProfilePage() {
   })
 
   const fetchProfile = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
     try {
-      const { data, error } = await client
+      const supabase = createClient()
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user?.id)
+        .eq('id', user.id)
         .single()
       if (error) throw error
       setProfile(data)
@@ -82,7 +88,7 @@ export default function ProfilePage() {
     } finally {
       setLoading(false)
     }
-  }, [client, user?.id])
+  }, [user?.id])
 
   useEffect(() => {
     if (user) {
@@ -93,8 +99,11 @@ export default function ProfilePage() {
   const updateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!user?.id) return
+    
     try {
-      const { error } = await client
+      const supabase = createClient()
+      const { error } = await supabase
         .from('profiles')
         .update({
           full_name: formData.full_name,
@@ -102,7 +111,7 @@ export default function ProfilePage() {
           address: formData.address,
           emergency_contact: formData.emergency_contact
         })
-        .eq('id', user?.id)
+        .eq('id', user.id)
 
       if (error) throw error
       
@@ -124,7 +133,8 @@ export default function ProfilePage() {
     }
 
     try {
-      const { error } = await client.auth.updateUser({
+      const supabase = createClient()
+      const { error } = await supabase.auth.updateUser({
         password: passwordForm.new_password
       })
 
@@ -239,7 +249,9 @@ export default function ProfilePage() {
                 <div className="hidden lg:flex space-x-6">
                   <div className="text-center">
                     <div className="text-2xl font-bold">
-                      {Math.floor((new Date().getTime() - new Date(profile?.created_at || '').getTime()) / (1000 * 60 * 60 * 24))}
+                      {profile?.created_at 
+                        ? Math.floor((new Date().getTime() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24)) || 0
+                        : 0}
                     </div>
                     <div className="text-xs text-indigo-200">Days Active</div>
                   </div>

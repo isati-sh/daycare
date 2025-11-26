@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +28,7 @@ type Announcement = Database['public']['Tables']['announcements']['Row']
 type AnnouncementInsert = Database['public']['Tables']['announcements']['Insert']
 
 export default function AnnouncementsPage() {
-  const { user, client } = useSupabase()
+  const { user } = useSupabase()
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -44,18 +45,16 @@ export default function AnnouncementsPage() {
     created_by: user?.id || ''
   })
 
-  useEffect(() => {
-    if (user && client) {
-      fetchAnnouncements()
+  const fetchAnnouncements = useCallback(async () => {
+    if (!user) {
+      setLoading(false)
+      return
     }
-  }, [user, client])
-
-  const fetchAnnouncements = async () => {
-    if (!client) return
 
     try {
       setLoading(true)
-      const { data, error } = await client
+      const supabase = createClient()
+      const { data, error } = await supabase
         .from('announcements')
         .select(`
           *,
@@ -76,13 +75,20 @@ export default function AnnouncementsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchAnnouncements()
+    }
+  }, [user, fetchAnnouncements])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!client || !user) return
+    if (!user) return
 
     try {
+      const supabase = createClient()
       const expiresAt = new Date()
       expiresAt.setDate(expiresAt.getDate() + formData.duration_days!)
       
@@ -93,7 +99,7 @@ export default function AnnouncementsPage() {
       }
 
       if (editingAnnouncement) {
-        const { error } = await client
+        const { error } = await supabase
           .from('announcements')
           .update({
             ...submissionData,
@@ -109,7 +115,7 @@ export default function AnnouncementsPage() {
 
         toast.success('Announcement updated successfully!')
       } else {
-        const { error } = await client
+        const { error } = await supabase
           .from('announcements')
           .insert([submissionData])
 
@@ -146,12 +152,11 @@ export default function AnnouncementsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!client) return
-    
     if (!confirm('Are you sure you want to delete this announcement?')) return
 
     try {
-      const { error } = await client
+      const supabase = createClient()
+      const { error } = await supabase
         .from('announcements')
         .delete()
         .eq('id', id)
@@ -171,10 +176,9 @@ export default function AnnouncementsPage() {
   }
 
   const toggleActive = async (announcement: Announcement) => {
-    if (!client) return
-
     try {
-      const { error } = await client
+      const supabase = createClient()
+      const { error } = await supabase
         .from('announcements')
         .update({ 
           is_active: !announcement.is_active,

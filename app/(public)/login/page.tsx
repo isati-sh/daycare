@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSupabase } from '@/components/providers/supabase-provider';
+import { createClient } from '@/lib/supabase/client';
 import { Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -32,7 +33,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirectTo') || '/dashboard';
-  const { user, client, loading } = useSupabase();
+  const { user, loading } = useSupabase();
 
   const {
     register,
@@ -53,7 +54,8 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      const { data: signInData, error } = await client.auth.signInWithPassword({
+      const supabase = createClient();
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email: data.email.trim(),
         password: data.password,
       });
@@ -69,7 +71,7 @@ function LoginForm() {
         return;
       }
 
-      const { data: profile, error: profileError } = await client
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('site_role')
         .eq('id', signInData.user.id)

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,26 +21,24 @@ type Child = Database['public']['Tables']['children']['Row'] & {
 }
 
 export default function TeacherChildrenPage() {
-  const { user, client, role } = useSupabase()
+  const { user, role } = useSupabase()
   const [children, setChildren] = useState<Child[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterGroup, setFilterGroup] = useState<string>('all')
 
-  useEffect(() => {
-    if (user && client) {
-      fetchChildren()
+  const fetchChildren = useCallback(async () => {
+    if (!user) {
+      setLoading(false)
+      return
     }
-  }, [user, client])
-
-  const fetchChildren = async () => {
-    if (!user || !client) return
 
     try {
       setLoading(true)
+      const supabase = createClient()
       
       // Fetch children assigned to this teacher
-      const { data: childrenData, error } = await client
+      const { data: childrenData, error } = await supabase
         .from('children_with_parents')
         .select('*')
         .eq('teacher_id', user.id)
@@ -47,12 +46,13 @@ export default function TeacherChildrenPage() {
 
       if (error) {
         console.error('Error fetching children:', error)
+        setLoading(false)
         return
       }
 
       // Fetch today's attendance for mood information
       const today = new Date().toISOString().split('T')[0]
-      const { data: attendanceData, error: attendanceError } = await client
+      const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance')
         .select('child_id, status')
         .eq('date', today)
@@ -62,7 +62,7 @@ export default function TeacherChildrenPage() {
       }
 
       // Fetch today's daily logs for mood information
-      const { data: dailyLogsData, error: logsError } = await client
+      const { data: dailyLogsData, error: logsError } = await supabase
         .from('daily_logs')
         .select('child_id, mood')
         .eq('date', today)
@@ -90,7 +90,13 @@ export default function TeacherChildrenPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchChildren()
+    }
+  }, [user, fetchChildren])
 
   const filteredChildren = children.filter(child => {
     const matchesSearch = 

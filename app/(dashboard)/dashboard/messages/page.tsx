@@ -77,7 +77,7 @@ export default async function MessagesPage() {
         .eq('status', 'active');
 
       if (!assignmentsError && assignments) {
-        const teacherIds = [...new Set(assignments.map((a) => a.teacher_id))];
+        const teacherIds = Array.from(new Set(assignments.map((a) => a.teacher_id)));
         
         // Fetch teacher profiles
         if (teacherIds.length > 0) {
@@ -124,7 +124,7 @@ export default async function MessagesPage() {
         .eq('status', 'active');
 
       if (children) {
-        const parentIds = [...new Set(children.map((c) => c.parent_id))];
+        const parentIds = Array.from(new Set(children.map((c) => c.parent_id)));
         
         if (parentIds.length > 0) {
           const { data: parents } = await supabase

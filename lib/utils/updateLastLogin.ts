@@ -1,9 +1,9 @@
 'use client'
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/lib/supabase/client'
 
 export async function updateLastLogin(userId: string) {
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
   
   try {
     const { error } = await supabase

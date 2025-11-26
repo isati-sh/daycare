@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import { 
   Phone, 
   Mail, 
@@ -47,6 +47,7 @@ export default function ContactPage() {
     setIsSubmitting(true)
     
     try {
+      const supabase = createClient()
       const { error } = await supabase
         .from('contact_submissions')
         .insert([data])

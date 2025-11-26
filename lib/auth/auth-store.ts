@@ -1,5 +1,7 @@
+'use client';
+
 import { create } from 'zustand'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 
 export interface Profile {
   id: string
@@ -15,14 +17,11 @@ export interface AuthState {
   isLoading: boolean
   initialized: boolean
   error: string | null
-  initializeAuth: () => Promise<void>
+  setAuth: (user: any, profile: Profile | null) => void
+  setError: (error: string | null) => void
+  initialize: () => Promise<void>
   logout: () => Promise<void>
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-)
 
 export const useAuthStore = create<AuthState>((set) => {
   return {
@@ -32,21 +31,39 @@ export const useAuthStore = create<AuthState>((set) => {
     initialized: false,
     error: null,
 
-    initializeAuth: async () => {
+    setAuth: (user: any, profile: Profile | null) => {
+      set({ user, profile, isLoading: false })
+    },
+
+    setError: (error: string | null) => {
+      set({ error })
+    },
+
+    initialize: async () => {
       set({ isLoading: true })
       try {
+        const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
-        
+
         if (!user) {
-          set({ user: null, profile: null, isLoading: false, initialized: true })
+          set({ user: null, profile: null, isLoading: false, initialized: true, error: null })
           return
         }
 
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('id, email, full_name, site_role, active_status')
           .eq('id', user.id)
           .single()
+
+        if (profileError) {
+          set({
+            error: profileError.message,
+            isLoading: false,
+            initialized: true,
+          })
+          return
+        }
 
         set({
           user,
@@ -66,8 +83,9 @@ export const useAuthStore = create<AuthState>((set) => {
 
     logout: async () => {
       try {
+        const supabase = createClient()
         await supabase.auth.signOut()
-        set({ user: null, profile: null })
+        set({ user: null, profile: null, error: null })
       } catch (err: any) {
         set({ error: err?.message || 'Failed to logout' })
       }

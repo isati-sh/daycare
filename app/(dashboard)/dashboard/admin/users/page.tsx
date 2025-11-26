@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,7 +15,7 @@ import toast from 'react-hot-toast'
 type Profile = Database['public']['Tables']['profiles']['Row']
 
 export default function AdminUsersPage() {
-  const { user, client, isAdmin } = useSupabase()
+  const { user, isAdmin } = useSupabase()
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -39,12 +40,16 @@ export default function AdminUsersPage() {
   const [inviting, setInviting] = useState(false)
 
   const fetchUsers = useCallback(async () => {
-    if (!user || !client) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
     try {
       setLoading(true)
+      const supabase = createClient()
       
-      const { data: usersData, error } = await client
+      const { data: usersData, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false })
@@ -62,13 +67,13 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [user, client])
+  }, [user])
 
   useEffect(() => {
-    if (user && client) {
+    if (user) {
       fetchUsers()
     }
-  }, [user, client, fetchUsers])
+  }, [user, fetchUsers])
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
@@ -81,7 +86,6 @@ export default function AdminUsersPage() {
   })
 
   const handleSendInvitation = async () => {
-    if (!client) return
     if (!inviteForm.email || !inviteForm.full_name) {
       toast.error('Please fill in all required fields')
       return
@@ -89,9 +93,10 @@ export default function AdminUsersPage() {
 
     try {
       setInviting(true)
+      const supabase = createClient()
 
       // Check if user already exists
-      const { data: existingUser } = await client
+      const { data: existingUser } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', inviteForm.email)
@@ -103,7 +108,7 @@ export default function AdminUsersPage() {
       }
 
       // Create a temporary user record with invitation status
-      const { data: newProfile, error: profileError } = await client
+      const { data: newProfile, error: profileError } = await supabase
         .from('profiles')
         .insert({
           email: inviteForm.email,
@@ -150,10 +155,9 @@ export default function AdminUsersPage() {
   }
 
   const resendInvitation = async (userEmail: string) => {
-    if (!client) return
-
     try {
-      const { error } = await client.auth.admin.inviteUserByEmail(userEmail, {
+      const supabase = createClient()
+      const { error } = await supabase.auth.admin.inviteUserByEmail(userEmail, {
         redirectTo: `${window.location.origin}/register`
       })
 
@@ -171,10 +175,9 @@ export default function AdminUsersPage() {
   }
 
   const updateUserRole = async (userId: string, newRole: 'admin' | 'teacher' | 'parent') => {
-    if (!client) return
-
     try {
-      const { error } = await client
+      const supabase = createClient()
+      const { error } = await supabase
         .from('profiles')
         .update({ 
           site_role: newRole,
@@ -199,11 +202,10 @@ export default function AdminUsersPage() {
   }
 
   const deactivateUser = async (userId: string, currentStatus: boolean) => {
-    if (!client) return
-
     const action = currentStatus ? 'deactivate' : 'activate'
     
     try {
+      const supabase = createClient()
       const updateData: any = {
         active_status: !currentStatus,
         updated_at: new Date().toISOString()
@@ -214,7 +216,7 @@ export default function AdminUsersPage() {
         updateData.site_role = null
       }
 
-      const { error } = await client
+      const { error } = await supabase
         .from('profiles')
         .update(updateData)
         .eq('id', userId)
@@ -246,10 +248,11 @@ export default function AdminUsersPage() {
   }
 
   const updateUser = async () => {
-    if (!client || !editingUser) return
+    if (!editingUser) return
 
     try {
-      const { error } = await client
+      const supabase = createClient()
+      const { error } = await supabase
         .from('profiles')
         .update({
           full_name: editForm.full_name,

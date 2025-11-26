@@ -2,21 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { createClient } from '@/lib/supabase/client'
 
 export function useUnreadMessages() {
-  const { user, client } = useSupabase()
+  const { user } = useSupabase()
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user || !client) {
+    if (!user) {
       setLoading(false)
       return
     }
 
     const fetchUnreadCount = async () => {
       try {
-        const { data, error } = await client
+        const supabase = createClient()
+        const { data, error } = await supabase
           .from('messages')
           .select('id')
           .eq('recipient_id', user.id)
@@ -38,7 +40,8 @@ export function useUnreadMessages() {
     fetchUnreadCount()
 
     // Set up real-time subscription for messages
-    const subscription = client
+    const supabase = createClient()
+    const subscription = supabase
       .channel('unread_messages')
       .on(
         'postgres_changes',
@@ -57,7 +60,7 @@ export function useUnreadMessages() {
     return () => {
       subscription.unsubscribe()
     }
-  }, [user, client])
+  }, [user])
 
   return { unreadCount, loading }
 }

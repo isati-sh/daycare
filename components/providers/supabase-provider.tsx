@@ -1,16 +1,14 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
-import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
-import { Database } from '@/types/database';
+import { createClient } from '@/lib/supabase/client';
+import type { Session, User } from '@supabase/supabase-js';
 
 type Role = 'admin' | 'teacher' | 'parent' | null;
 
 type SupabaseContextType = {
   user: User | null;
   session: Session | null;
-  client: SupabaseClient<Database>;
   role: Role;
   isAdmin: boolean;
   loading: boolean;
@@ -34,14 +32,15 @@ export function SupabaseProvider({
   serverSession: Session | null;
   children: React.ReactNode;
 }) {
-  const [client] = useState(() => createPagesBrowserClient<Database>());
   const [session, setSession] = useState<Session | null>(serverSession);
   const [user, setUser] = useState<User | null>(serverSession?.user ?? null);
   const [role, setRole] = useState<Role>(null);
-  const [loading, setLoading] = useState(true);
+  // Start with loading false if we have serverSession to match server render
+  const [loading, setLoading] = useState(!serverSession);
 
   const fetchUserRole = useCallback(async (userId: string): Promise<Role> => {
-    const { data, error } = await client
+    const supabase = createClient();
+    const { data, error } = await supabase
       .from('profiles')
       .select('site_role')
       .eq('id', userId)
@@ -53,7 +52,7 @@ export function SupabaseProvider({
     }
 
     // Update last_login when user accesses the app
-    const { error: updateError } = await client
+    const { error: updateError } = await supabase
       .from('profiles')
       .update({ last_login: new Date().toISOString() })
       .eq('id', userId);
@@ -63,27 +62,42 @@ export function SupabaseProvider({
     }
 
     return data?.site_role ?? null;
-  }, [client]);
+  }, []);
 
   useEffect(() => {
+    const supabase = createClient();
+    
     const getSession = async () => {
-      const {
-        data: { session },
-      } = await client.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
+      // Only fetch if we don't have a server session to avoid unnecessary updates
+      if (serverSession) {
+        // If we have serverSession, just verify and update role if needed
+        if (serverSession.user) {
+          const userRole = await fetchUserRole(serverSession.user.id);
+          setRole(userRole);
+        }
+        setLoading(false);
+      } else {
+        setLoading(true);
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        const userRole = await fetchUserRole(session.user.id);
-        setRole(userRole);
+        if (session?.user) {
+          const userRole = await fetchUserRole(session.user.id);
+          setRole(userRole);
+        } else {
+          setRole(null);
+        }
+
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     getSession();
 
-    const { data: listener } = client.auth.onAuthStateChange((_, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -97,12 +111,11 @@ export function SupabaseProvider({
     return () => {
       listener.subscription.unsubscribe();
     };
-  }, [client, fetchUserRole]);
+  }, [fetchUserRole, serverSession]);
 
   return (
     <SupabaseContext.Provider
       value={{
-        client,
         session,
         user,
         role,

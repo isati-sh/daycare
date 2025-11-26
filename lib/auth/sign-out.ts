@@ -1,12 +1,12 @@
 'use client';
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
 
 // Core sign-out logic
 async function performSignOut(redirectTo: string = '/login') {
   try {
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
 
     // Clear all browser storage to ensure a clean state
     if (typeof window !== 'undefined') {

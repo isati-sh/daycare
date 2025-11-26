@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -38,7 +39,7 @@ type DailyLog = Omit<Database['public']['Tables']['daily_logs']['Row'], 'activit
 }
 
 export default function TeacherDailyLogsPage() {
-  const { user, client } = useSupabase()
+  const { user } = useSupabase()
   const [children, setChildren] = useState<Child[]>([])
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,13 +51,17 @@ export default function TeacherDailyLogsPage() {
   const [activityImages, setActivityImages] = useState<{ [logId: string]: string[] }>({})
 
   const fetchData = useCallback(async () => {
-    if (!user || !client) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
     try {
       setLoading(true)
+      const supabase = createClient()
 
       // Fetch assigned children
-      const { data: childrenData, error: childrenError } = await client
+      const { data: childrenData, error: childrenError } = await supabase
         .from('children')
         .select('*')
         .eq('teacher_id', user.id)
@@ -66,7 +71,7 @@ export default function TeacherDailyLogsPage() {
       setChildren(childrenData || [])
 
       // Fetch daily logs for selected date
-      const { data: logsData, error: logsError } = await client
+      const { data: logsData, error: logsError } = await supabase
         .from('daily_logs')
         .select(`
           *,
@@ -85,23 +90,24 @@ export default function TeacherDailyLogsPage() {
     } finally {
       setLoading(false)
     }
-  }, [user, client, selectedDate])
+  }, [user, selectedDate])
 
   useEffect(() => {
-    if (user && client) {
+    if (user) {
       fetchData()
     }
-  }, [user, client, selectedDate, fetchData])
+  }, [user, selectedDate, fetchData])
 
   const filteredLogs = dailyLogs.filter(log => 
     selectedChild === 'all' || log.child_id === selectedChild
   )
 
   const createNewLog = async (childId: string) => {
-    if (!user || !client) return
+    if (!user) return
 
     try {
-      const { error } = await client
+      const supabase = createClient()
+      const { error } = await supabase
         .from('daily_logs')
         .insert({
           child_id: childId,
@@ -131,11 +137,12 @@ export default function TeacherDailyLogsPage() {
   }
 
   const deleteLog = async (logId: string) => {
-    if (!user || !client) return
+    if (!user) return
     if (!confirm('Are you sure you want to delete this daily log?')) return
 
     try {
-      const { error } = await client
+      const supabase = createClient()
+      const { error } = await supabase
         .from('daily_logs')
         .delete()
         .eq('id', logId)
@@ -185,9 +192,10 @@ export default function TeacherDailyLogsPage() {
   }
 
   const updateDailyLog = async (logData: Partial<DailyLog>, logId?: string) => {
-    if (!user || !client || !logId) return
+    if (!user || !logId) return
 
     try {
+      const supabase = createClient()
       // Transform activities back to string array
       const activities = logData.activities?.map(activity => 
         typeof activity === 'string' ? activity : activity
@@ -213,7 +221,7 @@ export default function TeacherDailyLogsPage() {
         photos: logData.photos || null
       }
 
-      const { error } = await client
+      const { error } = await supabase
         .from('daily_logs')
         .update(dbLogData)
         .eq('id', logId)
@@ -558,7 +566,6 @@ function EditDailyLogForm({
   onSubmit: (data: Partial<DailyLog>, logId: string) => void
   onClose: () => void
 }) {
-  const { client } = useSupabase()
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState({
@@ -674,16 +681,16 @@ function EditDailyLogForm({
   }
 
   const uploadActivityImage = async (index: number, file: File) => {
-    if (!client) return
     setUploading(true)
     try {
+      const supabase = createClient()
       const fileExt = file.name.split('.').pop()
       const fileName = `${child.id}/activity_${index}_${Date.now()}.${fileExt}`
-      const { error } = await client.storage
+      const { error } = await supabase.storage
         .from('daily-photos')
         .upload(fileName, file)
       if (error) throw error
-      const { data: { publicUrl } } = client.storage
+      const { data: { publicUrl } } = supabase.storage
         .from('daily-photos')
         .getPublicUrl(fileName)
       setFormData(prev => ({

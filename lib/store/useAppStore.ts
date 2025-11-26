@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { Session, User } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import type { DaycareSettings } from '@/lib/constants/daycare-settings';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type Role = Profile['site_role'] | null;
@@ -11,14 +10,11 @@ interface AppStoreState {
   user: User | null;
   profile: Profile | null;
   role: Role;
-  daycareSettings: DaycareSettings | null;
   loading: boolean;
   profileLoaded: boolean;
-  settingsLoaded: boolean;
   initialized: boolean;
   setSession: (session: Session | null) => void;
   setProfile: (profile: Profile | null) => void;
-  setDaycareSettings: (settings: DaycareSettings | null) => void;
   setLoading: (loading: boolean) => void;
   markInitialized: () => void;
   reset: () => void;
@@ -27,7 +23,6 @@ interface AppStoreState {
 const initialState: Omit<AppStoreState, keyof {
   setSession: never;
   setProfile: never;
-  setDaycareSettings: never;
   setLoading: never;
   markInitialized: never;
   reset: never;
@@ -36,10 +31,8 @@ const initialState: Omit<AppStoreState, keyof {
   user: null,
   profile: null,
   role: null,
-  daycareSettings: null,
   loading: true,
   profileLoaded: false,
-  settingsLoaded: false,
   initialized: false,
 };
 
@@ -62,11 +55,6 @@ export const useAppStore = create<AppStoreState>((set) => ({
       profile,
       role: profile?.site_role ?? null,
       profileLoaded: true,
-    })),
-  setDaycareSettings: (settings) =>
-    set(() => ({
-      daycareSettings: settings,
-      settingsLoaded: !!settings,
     })),
   setLoading: (loading) => set(() => ({ loading })),
   markInitialized: () => set(() => ({ initialized: true })),

@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, Phone, MapPin, Contact } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSupabase } from '@/components/providers/supabase-provider'
+import { createClient } from '@/lib/supabase/client'
 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
@@ -37,7 +38,7 @@ export default function RegisterPage() {
   const [hasAccess, setHasAccess] = useState(false)
   const [isFirstUser, setIsFirstUser] = useState(false)
   const router = useRouter()
-  const { user, client } = useSupabase()
+  const { user } = useSupabase()
 
   // Check URL parameters for invitation (compute only once)
   const { invitedEmail, isInvited } = useMemo(() => {
@@ -54,8 +55,10 @@ export default function RegisterPage() {
     if (user === undefined) return
 
     const checkAccess = async () => {
+      const supabase = createClient()
+      
       // 1. Check if users table is empty to determine if this is the first user
-      const { data: users, error: usersError } = await client
+      const { data: users, error: usersError } = await supabase
         .from('profiles')
         .select('id')
         .limit(1)
@@ -66,7 +69,7 @@ export default function RegisterPage() {
 
       // 2. If user is logged in, check if they already exist
       if (user && user.email) {
-        const { data: existingUser, error: existingUserError } = await client
+        const { data: existingUser, error: existingUserError } = await supabase
           .from('profiles')
           .select('id')
           .eq('email', user.email)
@@ -85,7 +88,7 @@ export default function RegisterPage() {
     }
 
     checkAccess()
-  }, [user, router, client])
+  }, [user, router])
 
   const {
     register,
@@ -107,8 +110,10 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true)
     try {
+      const supabase = createClient()
+      
       // Check if this email was invited (has inactive profile)
-      const { data: invitedProfile } = await client
+      const { data: invitedProfile } = await supabase
         .from('profiles')
         .select('id, site_role, active_status')
         .eq('email', data.email)
@@ -126,7 +131,7 @@ export default function RegisterPage() {
         site_role = 'admin'
       }
 
-      const { error, data: signUpData } = await client.auth.signUp({
+      const { error, data: signUpData } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
@@ -152,7 +157,7 @@ export default function RegisterPage() {
         
         if (invitedProfile) {
           // Update existing invited profile
-          await client
+          await supabase
             .from('profiles')
             .update({
               full_name: data.fullName,
@@ -166,7 +171,7 @@ export default function RegisterPage() {
             .eq('email', data.email)
         } else {
           // Create new profile
-          await client.from('profiles').insert([
+          await supabase.from('profiles').insert([
             {
               id,
               email: data.email,
